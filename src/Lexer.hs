@@ -11,10 +11,11 @@ import qualified Text.Parsec.Token as Tok
 
 lexer :: Tok.TokenParser ()
 lexer = Tok.makeTokenParser emptyDef {
-    Tok.commentStart = "(*"
+  Tok.commentStart = "(*"
   , Tok.commentEnd = "*)"
   , Tok.commentLine = "--"
-  , Tok.reservedOpNames = ["+", "-", "*", "/"]
+  , Tok.reservedOpNames = ["+", "-", "*", "/", ":"]
+  , Tok.reservedNames = ["class", "inherits"]
   }
 
 integer :: Parser Integer
@@ -26,11 +27,23 @@ identifier = Tok.identifier lexer
 parens :: Parser a -> Parser a
 parens = Tok.parens lexer
 
+braces :: Parser a -> Parser a
+braces = Tok.braces lexer
+
 semiSep :: Parser a -> Parser [a]
 semiSep = Tok.semiSep lexer
 
+semiSep1 :: Parser a -> Parser [a]
+semiSep1 = Tok.semiSep1 lexer
+
+commaSep :: Parser a -> Parser [a]
+commaSep = Tok.commaSep lexer
+
 reservedOp :: String -> Parser ()
 reservedOp = Tok.reservedOp lexer
+
+reserved :: String -> Parser ()
+reserved = Tok.reserved lexer
 
 
 tryLex :: Parser a -> String -> Either ParseError a

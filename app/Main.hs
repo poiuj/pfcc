@@ -6,7 +6,7 @@ import Control.Monad.Trans
 
 processLine :: String -> IO ()
 processLine line = do
-  case parseExpr line of
+  case parseTopLevel line of
     Left error -> putStrLn $ show error
     Right expr -> putStrLn $ show expr
 
