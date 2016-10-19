@@ -19,26 +19,26 @@ program = liftM Program $ semiSep1 class_
 class_ :: Parser Class
 class_ = do
   reserved "class"
-  name <- identifier
-  base <- option "NO_CLASS" (reserved "inherits" >> identifier)
+  name <- typeIdentifier
+  base <- option "NO_CLASS" (reserved "inherits" >> typeIdentifier)
   features <- braces $ semiSep feature
   return $ Class name base features
 
 -- just Method is implemented right now
 feature :: Parser Feature
 feature = do
-  name <- identifier
+  name <- idIdentifier
   formals <- parens $ commaSep formal
   reservedOp ":"
-  result <- identifier
+  result <- typeIdentifier
   body <- braces expr
   return $ Method name formals result body
 
 formal :: Parser Formal
 formal = do
-  name <- identifier
+  name <- idIdentifier
   reservedOp ":"
-  type_ <- identifier
+  type_ <- typeIdentifier
   return $ Formal name type_
 
 
@@ -65,13 +65,13 @@ int = do
 
 id :: Parser Expr
 id = do
-  name <- identifier
+  name <- idIdentifier
   return $ Id name
 
 
 contents :: Parser a -> Parser a
 contents p = do
-  Tok.whiteSpace lexer
+  whiteSpace
   r <- p
   eof
   return r
