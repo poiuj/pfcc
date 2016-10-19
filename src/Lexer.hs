@@ -44,16 +44,3 @@ reservedOp = Tok.reservedOp lexer
 
 reserved :: String -> Parser ()
 reserved = Tok.reserved lexer
-
-
-tryLex :: Parser a -> String -> Either ParseError a
-tryLex p input = runParser p () "<stdin>" input
-
-test :: String -> String
-test input =
-  case tryLex integer input of
-    Right val -> show val
-    Left _ ->
-      case tryLex identifier input of
-        Right val -> show val
-        Left _ -> "error"
