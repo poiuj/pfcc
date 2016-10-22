@@ -24,18 +24,18 @@ whiteSpace = Tok.whiteSpace lexer
 integer :: Parser Integer
 integer = (Tok.lexeme lexer) $ Tok.decimal lexer
 
-identifier :: Parser Char -> Parser String
-identifier firstLetterParser = do
-  first <- firstLetterParser
-  tail <- many (Char.alphaNum <|> Char.char '_')
-  whiteSpace
-  return $ first : tail
+identifier :: (Char -> Bool) -> String -> Parser String
+identifier firstLetterPred errorMsg = do
+  id <- Tok.identifier lexer
+  if firstLetterPred $ head id
+    then return id
+    else fail errorMsg
 
 idIdentifier :: Parser String
-idIdentifier = identifier Char.lower
+idIdentifier = identifier isLower "ID expected"
 
 typeIdentifier :: Parser String
-typeIdentifier = identifier Char.upper
+typeIdentifier = identifier isUpper "TYPE expected"
 
 parens :: Parser a -> Parser a
 parens = Tok.parens lexer
