@@ -5,67 +5,142 @@ import Syntax
 
 import Text.Parsec (parse)
 import Text.Parsec.String (Parser)
-import Text.Parsec.Prim ((<|>))
-import Text.Parsec.Combinator (eof, option, optionMaybe)
+import Text.Parsec.Prim ((<|>), try, many, lookAhead)
+import Text.Parsec.Char (char)
 import Text.Parsec.Error (ParseError)
+import qualified Text.Parsec.Combinator as Comb
 import qualified Text.Parsec.Expr as Expr
 import qualified Text.Parsec.Token as Tok
 
 import Control.Monad (liftM)
 
 program :: Parser Program
-program = liftM Program $ semiSep1 class_
+program = liftM Program $ Comb.many1 class_
 
 class_ :: Parser Class
 class_ = do
   reserved "class"
   name <- typeIdentifier
-  base <- option "NO_CLASS" (reserved "inherits" >> typeIdentifier)
-  features <- braces $ semiSep feature
+  base <- Comb.option "NO_CLASS" (reserved "inherits" >> typeIdentifier)
+  features <- braces $ many feature
+  semi
   return $ Class name base features
 
 -- just Method is implemented right now
 feature :: Parser Feature
 feature = do
-  name <- idIdentifier
+  name <- objectIdentifier
   formals <- parens $ commaSep formal
-  reservedOp ":"
+  colon
   result <- typeIdentifier
-  body <- braces expr
+  body <- braces topLevelExpr
+  semi
   return $ Method name formals result body
 
 formal :: Parser Formal
 formal = do
-  name <- idIdentifier
-  reservedOp ":"
+  name <- objectIdentifier
+  colon
   type_ <- typeIdentifier
   return $ Formal name type_
 
 
-binary name fun assoc = Expr.Infix (reservedOp name >> return (BinOp fun)) assoc
+topLevelExpr :: Parser Expr
+topLevelExpr = exprs
+  <|> newExpr
+  <|> try assignment
+  <|> expr
 
-exprTable = [[binary "*" Mul Expr.AssocLeft,
+exprs :: Parser Expr
+exprs = do
+  expressions <- braces $ many stmtExpr
+  return $ Compound expressions
+
+stmtExpr :: Parser Expr
+stmtExpr = do
+  e <- topLevelExpr
+  semi
+  return e
+
+newExpr :: Parser Expr
+newExpr = do
+  reservedOp "new"
+  type_ <- typeIdentifier
+  return $ New type_
+
+assignment :: Parser Expr
+assignment = do
+  name <- objectIdentifier
+  reservedOp "<-"
+  e <- topLevelExpr
+  return $ Assignment name e
+
+binary name fun assoc = Expr.Infix (reservedOp name >> return (BinExpr fun)) assoc
+prefix name fun = Expr.Prefix (reservedOp name >> return (UnExpr fun))
+
+exprTable = [[prefix "~" Complement],
+             [prefix "isvoid" IsVoid],
+             [binary "*" Mul Expr.AssocLeft,
               binary "/" Div Expr.AssocLeft],
              [binary "+" Plus Expr.AssocLeft,
-              binary "-" Minus Expr.AssocLeft]]
+              binary "-" Minus Expr.AssocLeft],
+             [binary "<=" Le Expr.AssocNone,
+              binary "<" Lt Expr.AssocNone,
+              binary "=" Eq Expr.AssocNone],
+             [prefix "not" Not]]
 
 expr :: Parser Expr
 expr = Expr.buildExpressionParser exprTable term
 
 term :: Parser Expr
-term =
-  int
-  <|> Parser.id
-  <|> parens expr
+term = parens topLevelExpr <|> simpleTerm
+
+simpleTerm :: Parser Expr
+simpleTerm = constTerm <|> idTerm
+
+constTerm :: Parser Expr
+constTerm = do
+  e <- (int <|> bool <|> str)
+  callTail e
+
+idTerm :: Parser Expr
+idTerm = do
+  id <- objectIdentifier
+  parenthesis <- lookAhead $ Comb.optionMaybe $ char '('
+  case parenthesis of
+    Just _ -> do
+      actuals <- parens $ commaSep topLevelExpr
+      callTail $ Call (Id "self") id actuals
+    Nothing -> callTail $ Id id
+
+-- tries to parse dot and method name. If fails just return given expr
+callTail :: Expr -> Parser Expr
+callTail expr = do
+  dot <- Comb.optionMaybe $ reservedOp "."
+  case dot of
+    Just _ -> do
+      callName <- objectIdentifier
+      actuals <- parens $ commaSep topLevelExpr
+      callTail $ Call expr callName actuals
+    Nothing -> return expr
 
 int :: Parser Expr
 int = do
   value <- integer
   return $ Int value
 
+bool :: Parser Expr
+bool = (reserved "true" >> (return $ BoolConst True))
+  <|> (reserved "false" >> (return $ BoolConst False))
+
+str :: Parser Expr
+str = do
+  value <- string
+  return $ StringConst value
+
 id :: Parser Expr
 id = do
-  name <- idIdentifier
+  name <- objectIdentifier
   return $ Id name
 
 
@@ -73,12 +148,12 @@ contents :: Parser a -> Parser a
 contents p = do
   whiteSpace
   r <- p
-  eof
+  Comb.eof
   return r
 
 
 parseExpr :: String -> Either ParseError Expr
-parseExpr = parse (contents expr) "<stdin>"
+parseExpr = parse (contents topLevelExpr) "<stdin>"
 
 parseProgram :: String -> Either ParseError Program
 parseProgram = parse (contents program) "<stdin>"
@@ -88,10 +163,10 @@ data TopLevel = P Program | E Expr deriving (Show)
 
 toplevel :: Parser TopLevel
 toplevel = do
-  programResult <- optionMaybe program
+  programResult <- Comb.optionMaybe program
   case programResult of
     Just p -> return $ P p
-    Nothing -> liftM E $ expr
+    Nothing -> liftM E $ topLevelExpr
 
 parseTopLevel :: String -> Either ParseError TopLevel
 parseTopLevel = parse (contents toplevel) "<stdio>"

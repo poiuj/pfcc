@@ -26,12 +26,20 @@ data Formal = Formal {
 data Expr
   = Id Name
   | Int Integer
-  | BinOp Op Expr Expr
+  | BoolConst Bool
+  | StringConst String
+  | UnExpr UnaryOp Expr
+  | BinExpr BinaryOp Expr Expr
+  | Assignment Name Expr
+  | New Name
+  | Compound [Expr]
+  | Call Expr Name [Expr]
   deriving (Show, Eq)
 
-data Op
-  = Plus
-  | Minus
-  | Mul
-  | Div
+data BinaryOp
+  = Mul | Div
+  | Plus | Minus
+  | Le | Lt | Eq
   deriving (Show, Eq)
+
+data UnaryOp = Not | Complement | IsVoid deriving (Show, Eq)

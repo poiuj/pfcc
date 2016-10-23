@@ -1,8 +1,11 @@
 module Lexer where
 
+import Data.Char (isLower, isUpper)
+
 import Text.Parsec.String (Parser)
 import Text.Parsec.Language (emptyDef)
 import Text.Parsec.Prim (many, (<|>))
+import Text.Parsec.Char (oneOf, char)
 import Text.Parsec.Error (ParseError)
 import Text.Parsec.Prim
 
@@ -14,8 +17,21 @@ lexer = Tok.makeTokenParser emptyDef {
   Tok.commentStart = "(*"
   , Tok.commentEnd = "*)"
   , Tok.commentLine = "--"
-  , Tok.reservedOpNames = ["+", "-", "*", "/", ":"]
-  , Tok.reservedNames = ["class", "inherits"]
+  , Tok.opStart = char '<'
+  , Tok.opLetter = oneOf "=-"
+  , Tok.reservedOpNames = ["."
+                          , "@"
+                          , "~"
+                          , "isvoid"
+                          , "*", "/"
+                          , "+", "-"
+                          , "<=", "<", "="
+                          , "not"
+                          , "<-"]
+  , Tok.reservedNames = ["true"
+                        , "false"
+                        , "class"
+                        , "inherits"]
   }
 
 whiteSpace :: Parser ()
@@ -31,11 +47,14 @@ identifier firstLetterPred errorMsg = do
     then return id
     else fail errorMsg
 
-idIdentifier :: Parser String
-idIdentifier = identifier isLower "ID expected"
+objectIdentifier :: Parser String
+objectIdentifier = identifier isLower "ID expected"
 
 typeIdentifier :: Parser String
 typeIdentifier = identifier isUpper "TYPE expected"
+
+string :: Parser String
+string = Tok.stringLiteral lexer
 
 parens :: Parser a -> Parser a
 parens = Tok.parens lexer
@@ -43,14 +62,14 @@ parens = Tok.parens lexer
 braces :: Parser a -> Parser a
 braces = Tok.braces lexer
 
-semiSep :: Parser a -> Parser [a]
-semiSep = Tok.semiSep lexer
-
-semiSep1 :: Parser a -> Parser [a]
-semiSep1 = Tok.semiSep1 lexer
-
 commaSep :: Parser a -> Parser [a]
 commaSep = Tok.commaSep lexer
+
+semi :: Parser String
+semi = Tok.semi lexer
+
+colon :: Parser String
+colon = Tok.colon lexer
 
 reservedOp :: String -> Parser ()
 reservedOp = Tok.reservedOp lexer
