@@ -93,7 +93,37 @@ expr :: Parser Expr
 expr = Expr.buildExpressionParser exprTable term
 
 term :: Parser Expr
-term = parens topLevelExpr <|> simpleTerm
+term = parens topLevelExpr
+  <|> letExpr
+  <|> simpleTerm
+
+letExpr :: Parser Expr
+letExpr = do
+  reserved "let"
+  name <- objectIdentifier
+  colon
+  t <- typeIdentifier
+  init <- Comb.option NoExpr (reservedOp "<-" >> topLevelExpr)
+  tail <- letTail
+  return $ Let name t init tail
+
+letTail :: Parser Expr
+letTail = letBinding <|> letBody
+
+letBinding :: Parser Expr
+letBinding = do
+  comma
+  name <- objectIdentifier
+  colon
+  t <- typeIdentifier
+  init <- Comb.option NoExpr (reservedOp "<-" >> topLevelExpr)
+  tail <- letTail
+  return $ Let name t init tail
+
+letBody :: Parser Expr
+letBody = do
+  reserved "in"
+  topLevelExpr
 
 simpleTerm :: Parser Expr
 simpleTerm = constTerm <|> idTerm

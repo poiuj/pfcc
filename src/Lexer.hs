@@ -31,7 +31,10 @@ lexer = Tok.makeTokenParser emptyDef {
   , Tok.reservedNames = ["true"
                         , "false"
                         , "class"
-                        , "inherits"]
+                        , "inherits"
+                        , "let"
+                        , "in"
+                        , "new"]
   }
 
 whiteSpace :: Parser ()
@@ -70,6 +73,9 @@ semi = Tok.semi lexer
 
 colon :: Parser String
 colon = Tok.colon lexer
+
+comma :: Parser String
+comma = Tok.comma lexer
 
 reservedOp :: String -> Parser ()
 reservedOp = Tok.reservedOp lexer
