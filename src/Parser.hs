@@ -33,7 +33,7 @@ feature = do
   formals <- parens $ commaSep formal
   colon
   result <- typeIdentifier
-  body <- braces topLevelExpr
+  body <- braces expr
   semi
   return $ Method name formals result body
 
@@ -45,12 +45,6 @@ formal = do
   return $ Formal name type_
 
 
-topLevelExpr :: Parser Expr
-topLevelExpr = exprs
-  <|> newExpr
-  <|> try assignment
-  <|> expr
-
 exprs :: Parser Expr
 exprs = do
   expressions <- braces $ many stmtExpr
@@ -58,7 +52,7 @@ exprs = do
 
 stmtExpr :: Parser Expr
 stmtExpr = do
-  e <- topLevelExpr
+  e <- expr
   semi
   return e
 
@@ -72,7 +66,7 @@ assignment :: Parser Expr
 assignment = do
   name <- objectIdentifier
   reservedOp "<-"
-  e <- topLevelExpr
+  e <- expr
   return $ Assignment name e
 
 binary name fun assoc = Expr.Infix (reservedOp name >> return (BinExpr fun)) assoc
@@ -93,8 +87,11 @@ expr :: Parser Expr
 expr = Expr.buildExpressionParser exprTable term
 
 term :: Parser Expr
-term = parens topLevelExpr
+term = parens expr
+  <|> exprs
   <|> letExpr
+  <|> newExpr
+  <|> try assignment
   <|> simpleTerm
 
 letExpr :: Parser Expr
@@ -103,7 +100,7 @@ letExpr = do
   name <- objectIdentifier
   colon
   t <- typeIdentifier
-  init <- Comb.option NoExpr (reservedOp "<-" >> topLevelExpr)
+  init <- Comb.option NoExpr (reservedOp "<-" >> expr)
   tail <- letTail
   return $ Let name t init tail
 
@@ -116,14 +113,14 @@ letBinding = do
   name <- objectIdentifier
   colon
   t <- typeIdentifier
-  init <- Comb.option NoExpr (reservedOp "<-" >> topLevelExpr)
+  init <- Comb.option NoExpr (reservedOp "<-" >> expr)
   tail <- letTail
   return $ Let name t init tail
 
 letBody :: Parser Expr
 letBody = do
   reserved "in"
-  topLevelExpr
+  expr
 
 simpleTerm :: Parser Expr
 simpleTerm = constTerm <|> idTerm
@@ -139,7 +136,7 @@ idTerm = do
   parenthesis <- lookAhead $ Comb.optionMaybe $ char '('
   case parenthesis of
     Just _ -> do
-      actuals <- parens $ commaSep topLevelExpr
+      actuals <- parens $ commaSep expr
       callTail $ Call (Id "self") id actuals
     Nothing -> callTail $ Id id
 
@@ -156,18 +153,18 @@ callTail expr = do
         Nothing -> return expr
 
 staticCall :: Expr -> Parser Expr
-staticCall expr = do
+staticCall e = do
   staticType <- typeIdentifier
   reservedOp "."
   callName <- objectIdentifier
-  actuals <- parens $ commaSep topLevelExpr
-  callTail $ StaticCall expr staticType callName actuals
+  actuals <- parens $ commaSep expr
+  callTail $ StaticCall e staticType callName actuals
 
 call :: Expr -> Parser Expr
-call expr = do
+call e = do
   callName <- objectIdentifier
-  actuals <- parens $ commaSep topLevelExpr
-  callTail $ Call expr callName actuals
+  actuals <- parens $ commaSep expr
+  callTail $ Call e callName actuals
 
 int :: Parser Expr
 int = do
@@ -198,7 +195,7 @@ contents p = do
 
 
 parseExpr :: String -> Either ParseError Expr
-parseExpr = parse (contents topLevelExpr) "<stdin>"
+parseExpr = parse (contents expr) "<stdin>"
 
 parseProgram :: String -> Either ParseError Program
 parseProgram = parse (contents program) "<stdin>"
@@ -211,7 +208,7 @@ toplevel = do
   programResult <- Comb.optionMaybe program
   case programResult of
     Just p -> return $ P p
-    Nothing -> liftM E $ topLevelExpr
+    Nothing -> liftM E $ expr
 
 parseTopLevel :: String -> Either ParseError TopLevel
 parseTopLevel = parse (contents toplevel) "<stdio>"
