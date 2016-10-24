@@ -34,6 +34,7 @@ data Expr
   | New Name
   | Compound [Expr]
   | Call Expr Name [Expr]
+  | StaticCall Expr Name Name [Expr]
   deriving (Show, Eq)
 
 data BinaryOp

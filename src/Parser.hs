@@ -113,16 +113,31 @@ idTerm = do
       callTail $ Call (Id "self") id actuals
     Nothing -> callTail $ Id id
 
--- tries to parse dot and method name. If fails just return given expr
+-- Tries to parse call or static call. If fails, just return expr
 callTail :: Expr -> Parser Expr
 callTail expr = do
-  dot <- Comb.optionMaybe $ reservedOp "."
-  case dot of
-    Just _ -> do
-      callName <- objectIdentifier
-      actuals <- parens $ commaSep topLevelExpr
-      callTail $ Call expr callName actuals
-    Nothing -> return expr
+  at <- Comb.optionMaybe $ reservedOp "@"
+  case at of
+    Just _ -> staticCall expr
+    Nothing -> do
+      dot <- Comb.optionMaybe $ reservedOp "."
+      case dot of
+        Just _ -> call expr
+        Nothing -> return expr
+
+staticCall :: Expr -> Parser Expr
+staticCall expr = do
+  staticType <- typeIdentifier
+  reservedOp "."
+  callName <- objectIdentifier
+  actuals <- parens $ commaSep topLevelExpr
+  callTail $ StaticCall expr staticType callName actuals
+
+call :: Expr -> Parser Expr
+call expr = do
+  callName <- objectIdentifier
+  actuals <- parens $ commaSep topLevelExpr
+  callTail $ Call expr callName actuals
 
 int :: Parser Expr
 int = do
