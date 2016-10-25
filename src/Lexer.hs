@@ -4,7 +4,7 @@ import Data.Char (isLower, isUpper)
 
 import Text.Parsec.String (Parser)
 import Text.Parsec.Language (emptyDef)
-import Text.Parsec.Prim (many, (<|>))
+import Text.Parsec.Prim (many, (<|>), lookAhead)
 import Text.Parsec.Char (oneOf, noneOf, char)
 import Text.Parsec.Combinator (between)
 import Text.Parsec.Prim
@@ -45,9 +45,9 @@ integer = (Tok.lexeme lexer) $ Tok.decimal lexer
 
 identifier :: (Char -> Bool) -> String -> Parser String
 identifier firstLetterPred errorMsg = do
-  id <- Tok.identifier lexer
+  id <- lookAhead $ Tok.identifier lexer
   if firstLetterPred $ head id
-    then return id
+    then (Tok.identifier lexer >> return id)
     else fail errorMsg
 
 objectIdentifier :: Parser String
