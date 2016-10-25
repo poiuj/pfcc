@@ -28,13 +28,14 @@ lexer = Tok.makeTokenParser emptyDef {
                           , "<=", "<", "="
                           , "not"
                           , "<-"]
-  , Tok.reservedNames = ["true"
-                        , "false"
-                        , "class"
-                        , "inherits"
-                        , "let"
-                        , "in"
-                        , "new"]
+  , Tok.reservedNames = ["true", "false"
+                        , "class", "inherits"
+                        , "let", "in"
+                        , "new"
+                        , "if", "then", "else", "fi"
+                        , "loop", "pool", "while"
+                        , "case", "esac", "of"
+                        ]
   }
 
 whiteSpace :: Parser ()
