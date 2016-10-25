@@ -5,8 +5,8 @@ import Data.Char (isLower, isUpper)
 import Text.Parsec.String (Parser)
 import Text.Parsec.Language (emptyDef)
 import Text.Parsec.Prim (many, (<|>))
-import Text.Parsec.Char (oneOf, char)
-import Text.Parsec.Error (ParseError)
+import Text.Parsec.Char (oneOf, noneOf, char)
+import Text.Parsec.Combinator (between)
 import Text.Parsec.Prim
 
 import qualified Text.Parsec.Token as Tok
@@ -57,7 +57,25 @@ typeIdentifier :: Parser String
 typeIdentifier = identifier isUpper "TYPE expected"
 
 string :: Parser String
-string = Tok.stringLiteral lexer
+string = do
+  between (char '"') (char '"') $ many validStringElement
+
+validStringElement :: Parser Char
+validStringElement = escapedChar <|> validChar
+
+escaped :: Char -> Char -> Parser Char
+escaped c ec = char c >> return ec
+
+escapedChar :: Parser Char
+escapedChar = do
+  char '\\'
+  (escaped 'b' '\b') <|> (escaped 't' '\t') <|> (escaped 'n' '\n') <|> (escaped 'f' '\f') <|> validEscapedChar
+
+validEscapedChar :: Parser Char
+validEscapedChar = char '"' <|> char '\n' <|> validChar
+
+validChar :: Parser Char
+validChar = noneOf "\"\n\0"
 
 parens :: Parser a -> Parser a
 parens = Tok.parens lexer
