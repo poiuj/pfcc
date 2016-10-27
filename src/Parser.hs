@@ -172,8 +172,9 @@ int = do
   return $ Int value
 
 bool :: Parser Expr
-bool = (reserved "true" >> (return $ BoolConst True))
-  <|> (reserved "false" >> (return $ BoolConst False))
+-- first character of bool constanct have to be in lower case
+bool = try (char 't' >> reserved "rue" >> (return $ BoolConst True))
+  <|> try (char 'f' >> reserved "alse" >> (return $ BoolConst False))
 
 str :: Parser Expr
 str = do

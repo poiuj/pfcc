@@ -1,6 +1,6 @@
 module Lexer where
 
-import Data.Char (isLower, isUpper)
+import Data.Char (isLower, isUpper, toLower, toUpper)
 
 import Text.Parsec.String (Parser)
 import Text.Parsec.Language (emptyDef)
@@ -99,5 +99,10 @@ comma = Tok.comma lexer
 reservedOp :: String -> Parser ()
 reservedOp = Tok.reservedOp lexer
 
+caseInsensitiveChar :: Char -> Parser Char
+caseInsensitiveChar c = char (toLower c) <|> char (toUpper c)
+
 reserved :: String -> Parser ()
-reserved = Tok.reserved lexer
+reserved str = try $ do
+  mapM caseInsensitiveChar str
+  whiteSpace
