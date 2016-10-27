@@ -3,9 +3,25 @@ module Main where
 import Parser
 import System.Console.Haskeline
 import Control.Monad.Trans
+import Data.List
+
+loadFileCommand = ":load"
 
 processLine :: String -> IO ()
 processLine line = do
+  if loadFileCommand `isPrefixOf` line
+    then loadFile $ drop (length loadFileCommand + 1) line
+    else eval line
+
+loadFile :: String -> IO ()
+loadFile filePath = do
+  parseResult <- parseFile filePath
+  case parseResult of
+    Left error -> putStrLn $ show error
+    Right ast -> putStrLn $ show ast
+
+eval :: String -> IO ()
+eval line = do
   case parseTopLevel line of
     Left error -> putStrLn $ show error
     Right expr -> putStrLn $ show expr

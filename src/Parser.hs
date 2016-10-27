@@ -4,7 +4,7 @@ import Lexer
 import Syntax
 
 import Text.Parsec (parse)
-import Text.Parsec.String (Parser)
+import Text.Parsec.String (Parser, parseFromFile)
 import Text.Parsec.Prim ((<|>), try, many, lookAhead)
 import Text.Parsec.Char (char)
 import Text.Parsec.Error (ParseError)
@@ -213,3 +213,6 @@ toplevel = do
 
 parseTopLevel :: String -> Either ParseError TopLevel
 parseTopLevel = parse (contents toplevel) "<stdio>"
+
+parseFile :: String -> IO (Either ParseError Program)
+parseFile = parseFromFile (contents program)
