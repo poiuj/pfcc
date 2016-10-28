@@ -28,7 +28,10 @@ class_ = do
 
 -- just Method is implemented right now
 feature :: Parser Feature
-feature = do
+feature = try method <|> attribute
+
+method :: Parser Feature
+method = do
   name <- objectIdentifier
   formals <- parens $ commaSep formal
   colon
@@ -36,6 +39,15 @@ feature = do
   body <- braces expr
   semi
   return $ Method name formals result body
+
+attribute :: Parser Feature
+attribute = do
+  name <- objectIdentifier
+  colon
+  type_ <- typeIdentifier
+  init <- Comb.option NoExpr (reservedOp "<-" >> expr)
+  semi
+  return $ Attribute name type_ init
 
 formal :: Parser Formal
 formal = do

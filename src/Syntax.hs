@@ -16,7 +16,12 @@ data Feature =
     , methodFormals :: [Formal]
     , methodResult :: Name
     , methodBody :: Expr
-    } deriving (Show)
+    }
+  | Attribute {
+      attrName :: Name
+      , attrType :: Name
+      , attrInit :: Expr
+      } deriving (Show)
 
 data Formal = Formal {
   formalName :: Name
