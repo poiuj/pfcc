@@ -96,15 +96,13 @@ exprTable = [[prefix "~" Complement],
              [prefix "not" Not]]
 
 expr :: Parser Expr
-expr = Expr.buildExpressionParser exprTable term
+expr = Expr.buildExpressionParser exprTable baseExpr
 
-term :: Parser Expr
-term = parens expr
-  <|> exprs
-  <|> letExpr
+baseExpr :: Parser Expr
+baseExpr = letExpr
   <|> newExpr
   <|> try assignment
-  <|> simpleTerm
+  <|> term
 
 letExpr :: Parser Expr
 letExpr = do
@@ -134,12 +132,12 @@ letBody = do
   reserved "in"
   expr
 
-simpleTerm :: Parser Expr
-simpleTerm = constTerm <|> idTerm
+term :: Parser Expr
+term = idTerm <|> exprTerm
 
-constTerm :: Parser Expr
-constTerm = do
-  e <- (int <|> bool <|> str)
+exprTerm :: Parser Expr
+exprTerm = do
+  e <- (int <|> bool <|> str <|> parens expr <|> exprs)
   callTail e
 
 idTerm :: Parser Expr
