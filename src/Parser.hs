@@ -21,7 +21,7 @@ class_ :: Parser Class
 class_ = do
   reserved "class"
   name <- typeIdentifier
-  base <- Comb.option "NO_CLASS" (reserved "inherits" >> typeIdentifier)
+  base <- Comb.option "Object" (reserved "inherits" >> typeIdentifier)
   features <- braces $ many feature
   semi
   return $ Class name base features
