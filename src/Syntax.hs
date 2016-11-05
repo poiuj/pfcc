@@ -2,11 +2,13 @@ module Syntax where
 
 type Name = String
 
-data Program = Program [Class] deriving (Show)
+data Program = Program {
+  programClasses :: [Class]
+  } deriving (Show)
 
 data Class = Class {
   className :: Name
-  , classbase :: Name
+  , classBase :: Name
   , classFeatures :: [Feature]
   } deriving (Show)
 

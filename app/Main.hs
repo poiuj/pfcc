@@ -1,6 +1,8 @@
 module Main where
 
 import Parser
+import Semant
+
 import System.Console.Haskeline
 import Control.Monad.Trans
 import Data.List
@@ -18,7 +20,10 @@ loadFile filePath = do
   parseResult <- parseFile filePath
   case parseResult of
     Left error -> putStrLn $ show error
-    Right ast -> putStrLn $ show ast
+    Right ast -> do
+      case semant ast of
+        Right () -> putStrLn $ show ast
+        Left err -> putStrLn $ show err
 
 eval :: String -> IO ()
 eval line = do
