@@ -205,11 +205,17 @@ contents p = do
   return r
 
 
+parseWith :: Parser a -> String -> Either ParseError a
+parseWith kind = parse (contents kind) "<stdin>"
+
 parseExpr :: String -> Either ParseError Expr
-parseExpr = parse (contents expr) "<stdin>"
+parseExpr = parseWith expr
+
+parseClass :: String -> Either ParseError Class
+parseClass = parseWith class_
 
 parseProgram :: String -> Either ParseError Program
-parseProgram = parse (contents program) "<stdin>"
+parseProgram = parseWith program
 
 
 data TopLevel = P Program | E Expr deriving (Show)

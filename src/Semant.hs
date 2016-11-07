@@ -1,6 +1,7 @@
 module Semant where
 
 import Syntax
+import Parser (parseClass)
 
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -13,7 +14,7 @@ data Type =
   | TString
   | TObject
   | Type Name
-  | Method [Name]
+  | TMethod [Name]
 
 
 data SemantError =
@@ -40,8 +41,39 @@ type Classes = M.Map Name Class
 
 type Check = ExceptT SemantError (Reader Classes)
 
+
+parsedClass cls = case parseClass cls of
+  Right classAst -> classAst
+  Left errorMsg -> error $ show errorMsg
+
+-- Parser assumes that all classes inherit from Object, so we need manual
+-- specify "NO_CLASS"
+objectClass = Class "Object" "NO_CLASS" [
+  Method "abort" [] "Object" NoExpr
+  , Method "type_name" [] "String" NoExpr
+  , Method "copy" [] "SELF_TYPE" NoExpr]
+
+ioClass = parsedClass "class IO {\
+\out_string(x:String) : SELF_TYPE {{}};\
+\out_int(x : Int) : SELF_TYPE {{}};\
+\in_string() : String {{}};\
+\in_int() : Int {{}}; };"
+
+intClass = parsedClass "class Int {};"
+
+stringClass = parsedClass "class String {\
+\length() : Int {{}};\
+\concat(s : String) : String {{}};\
+\substr(i : Int, l : Int) : String {{}}; };"
+
+boolClass = parsedClass "class Bool {};"
+
+basicClasses :: [Class]
+basicClasses = [objectClass, ioClass, intClass, stringClass, boolClass]
+
 classesMap :: Program -> Classes
-classesMap = M.fromList . (map (\cls -> (className cls, cls))) . programClasses
+classesMap = M.fromList . (map (\cls -> (className cls, cls))) . includeBasicClasses . programClasses
+  where includeBasicClasses = (basicClasses ++)
 
 checkInheritance :: Program -> Check ()
 checkInheritance program = (mapM checkClass $ programClasses program) >> return ()
