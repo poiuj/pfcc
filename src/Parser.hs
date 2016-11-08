@@ -230,5 +230,5 @@ toplevel = do
 parseTopLevel :: String -> Either ParseError TopLevel
 parseTopLevel = parse (contents toplevel) "<stdio>"
 
-parseFile :: String -> IO (Either ParseError Program)
+parseFile :: FilePath -> IO (Either ParseError Program)
 parseFile = parseFromFile (contents program)

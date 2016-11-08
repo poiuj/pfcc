@@ -3,38 +3,50 @@ module Main where
 import Parser
 import Semant
 
-import System.Console.Haskeline
-import Control.Monad.Trans
-import Data.List
+import System.Environment
+import System.Console.GetOpt
 
-loadFileCommand = ":load"
+import Control.Monad
 
-processLine :: String -> IO ()
-processLine line = do
-  if loadFileCommand `isPrefixOf` line
-    then loadFile $ drop (length loadFileCommand + 1) line
-    else eval line
 
-loadFile :: String -> IO ()
-loadFile filePath = do
-  parseResult <- parseFile filePath
-  case parseResult of
-    Left error -> putStrLn $ show error
-    Right ast -> do
-      case semant ast of
-        Right () -> putStrLn $ show ast
-        Left err -> putStrLn $ show err
+data Flag = Parse | Semant deriving Show
 
-eval :: String -> IO ()
-eval line = do
-  case parseTopLevel line of
-    Left error -> putStrLn $ show error
-    Right expr -> putStrLn $ show expr
+options :: [OptDescr Flag]
+options = [
+  Option "p" ["parse"] (NoArg Parse) "Parse a program and print out an AST."
+  , Option "s" ["semant"] (NoArg Semant) "Parse a program and run semantic analysis. Print out an annotated AST."
+  ]
+
+getOptions :: [String] -> IO (Flag, [FilePath])
+getOptions argv =
+  case getOpt Permute options argv of
+    ([option], inputFile, _) -> return (option, inputFile)
+    ([], _, []) -> error "Option that specifies mode is required"
+    (o1:o2:os, _, _) -> error "Too many options are passed"
+    (_, _, errorMsg) -> error $ concat errorMsg
+
+runParserInner file = do
+  result <- parseFile file
+  case result of
+    (Right ast) -> return ast
+    (Left err) -> error $ show err
+
+runParser :: FilePath -> IO ()
+runParser file = do
+  ast <- runParserInner file
+  putStrLn $ show ast
+
+runSemant :: FilePath -> IO ()
+runSemant file = do
+  ast <- runParserInner file
+  case semant ast of
+    (Right ()) -> putStrLn $ show ast
+    (Left err) -> error $ show err
 
 main :: IO ()
-main = runInputT defaultSettings loop
-  where loop = do
-          line <- getInputLine ">"
-          case line of
-            Nothing -> outputStrLn "Bye!"
-            Just input -> liftIO (processLine input) >> loop
+main = do
+  argv <- getArgs
+  (option, files) <- getOptions argv
+  case option of
+    Parse -> forM_ files runParser
+    Semant -> forM_ files runSemant
