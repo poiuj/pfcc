@@ -20,9 +20,9 @@ options = [
 getOptions :: [String] -> IO (Flag, [FilePath])
 getOptions argv =
   case getOpt Permute options argv of
-    ([option], inputFile, _) -> return (option, inputFile)
+    ([option], inputFiles, _) -> return (option, inputFiles)
+    (_:_:_, _, _) -> error "Too many options are passed"
     ([], _, []) -> error "Option that specifies mode is required"
-    (o1:o2:os, _, _) -> error "Too many options are passed"
     (_, _, errorMsg) -> error $ concat errorMsg
 
 runParserInner file = do
