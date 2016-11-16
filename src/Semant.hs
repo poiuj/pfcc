@@ -19,7 +19,7 @@ data SemantError =
   | CyclicInheritance [Name]
   | UndefinedClass Name
   | UndefinedVariable Name
-  | UndefinedMethod Name Name
+  | UndefinedMethod Name
 
 showCyclicClasses :: [Name] -> String
 showCyclicClasses = foldr step ""
@@ -35,7 +35,7 @@ instance Show SemantError where
   show (CyclicInheritance classes) = "Cyclic inheritance: " ++ showCyclicClasses classes
   show (UndefinedClass cls) = "Class is undefined: " ++ showClass cls
   show (UndefinedVariable var) = "Variable is undefined: " ++ var
-  show (UndefinedMethod cls method) = "Method " ++ method ++ " is undefined in class " ++ cls
+  show (UndefinedMethod method) = "Method is undefined : " ++ method
 
 type Classes = M.Map Name Class
 type ObjectEnv = [M.Map Name Type]
@@ -116,7 +116,7 @@ lookupMethod className methodName = do
       case lookupMethodInFeatures features methodName of
         Just t -> return t
         Nothing -> lookupMethod base methodName
-    Nothing -> throwError $ UndefinedMethod className methodName
+    Nothing -> throwError $ UndefinedMethod methodName
 
 checkInheritance :: Program -> Check ()
 checkInheritance program = (mapM checkClass $ programClasses program) >> return ()
