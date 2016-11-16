@@ -118,6 +118,13 @@ lookupMethod className methodName = do
         Nothing -> lookupMethod base methodName
     Nothing -> throwError $ UndefinedMethod methodName
 
+lookupClass :: Name -> Check Class
+lookupClass name = do
+  lookupResult <- reader $ M.lookup name . envClasses
+  case lookupResult of
+    Just cls -> return cls
+    Nothing -> throwError $ UndefinedClass name
+
 checkInheritance :: Program -> Check ()
 checkInheritance program = (mapM checkClass $ programClasses program) >> return ()
 
@@ -128,10 +135,8 @@ checkClass = innerCheck S.empty
         innerCheck _ (Class _ "Object" _) = return ()
         innerCheck seen (Class name _ _) | name `S.member` seen = throwError $ CyclicInheritance (S.toList seen)
         innerCheck seen (Class name base _) = do
-          baseClassLookup <- reader $ M.lookup base . envClasses
-          case baseClassLookup of
-            (Just baseClass) -> innerCheck (S.insert name seen) baseClass
-            Nothing -> throwError $ UndefinedClass base
+          baseClass <- lookupClass base
+          innerCheck (S.insert name seen) baseClass
 
 
 semant :: Program -> Either SemantError ()
