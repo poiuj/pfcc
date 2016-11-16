@@ -20,6 +20,7 @@ data SemantError =
   | UndefinedClass Name
   | UndefinedVariable Name
   | UndefinedMethod Name
+  | RedefinedAttribute Name
 
 showCyclicClasses :: [Name] -> String
 showCyclicClasses = foldr step ""
@@ -35,7 +36,8 @@ instance Show SemantError where
   show (CyclicInheritance classes) = "Cyclic inheritance: " ++ showCyclicClasses classes
   show (UndefinedClass cls) = "Class is undefined: " ++ showClass cls
   show (UndefinedVariable var) = "Variable is undefined: " ++ var
-  show (UndefinedMethod method) = "Method is undefined : " ++ method
+  show (UndefinedMethod method) = "Method is undefined: " ++ method
+  show (RedefinedAttribute attr) = "Attribute is redefined: " ++ attr
 
 type Classes = M.Map Name Class
 type ObjectEnv = [M.Map Name Type]
@@ -125,11 +127,41 @@ lookupClass name = do
     Just cls -> return cls
     Nothing -> throwError $ UndefinedClass name
 
-checkInheritance :: Program -> Check ()
-checkInheritance program = (mapM checkClass $ programClasses program) >> return ()
+updateObjEnv :: Environment -> ObjectEnv -> Environment
+updateObjEnv (Environment classes _) newObjEnv = Environment classes newObjEnv
 
-checkClass :: Class -> Check ()
-checkClass = innerCheck S.empty
+-- Monoid?
+emptyObjEnv = []
+mergeEnvs = (++)
+fromMap = (:[])
+
+makeLocalInner :: [Feature] -> M.Map Name Type -> Check (M.Map Name Type)
+makeLocalInner ((Method _ _ _ _):fs) map = makeLocalInner fs map
+makeLocalInner [] map = return map
+makeLocalInner ((Attribute aName aType aInit):fs) map = do
+  previouslyDefinedAttr <- reader $ lookupInObjectEnv aName . envObj
+  case previouslyDefinedAttr of
+    Just t -> throwError $ RedefinedAttribute aName
+    Nothing -> makeLocalInner fs (M.insert aName (Type aType) map)
+
+makeLocalObjEnv :: [Feature] -> Check ObjectEnv
+makeLocalObjEnv features = do
+  attrsMap <- makeLocalInner features M.empty
+  return $ fromMap attrsMap
+
+makeObjEnvForClass :: Class -> Check ObjectEnv
+makeObjEnvForClass (Class "Object" _ _) = return emptyObjEnv
+makeObjEnvForClass (Class name base features) = do
+  baseClass <- lookupClass base
+  baseObjEnv <- makeObjEnvForClass baseClass
+  localObjEnv <- local (flip updateObjEnv baseObjEnv) (makeLocalObjEnv features)
+  return $ mergeEnvs localObjEnv baseObjEnv
+
+checkInheritance :: Program -> Check ()
+checkInheritance = mapM_ checkClassInheritance . programClasses
+
+checkClassInheritance :: Class -> Check ()
+checkClassInheritance = innerCheck S.empty
   where innerCheck :: S.Set Name -> Class -> Check ()
           -- TODO: support of std lib
         innerCheck _ (Class _ "Object" _) = return ()
@@ -138,6 +170,14 @@ checkClass = innerCheck S.empty
           baseClass <- lookupClass base
           innerCheck (S.insert name seen) baseClass
 
+checkProgram :: Program -> Check ()
+checkProgram = mapM_ checkClass . programClasses
+
+checkClass :: Class -> Check ()
+checkClass cls = do
+  -- clsObjEnv <- makeObjEnvForClass cls
+  -- local (flip updateObjEnv clsObjEnv) ask
+  return ()
 
 semant :: Program -> Either SemantError ()
 semant program = fst $ runWriter (runReaderT (runExceptT $ checkInheritance program) (Environment (classesMap program) []))
