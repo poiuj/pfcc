@@ -13,7 +13,6 @@ data Type =
   Type Name
   | TMethod [Name]
 
-
 data SemantError =
   TypeMismatch Name Name
   | CyclicInheritance [Name]
@@ -21,6 +20,7 @@ data SemantError =
   | UndefinedVariable Name
   | UndefinedMethod Name
   | RedefinedAttribute Name
+  | RedefinedFormal Name
 
 showCyclicClasses :: [Name] -> String
 showCyclicClasses = foldr step ""
@@ -38,6 +38,7 @@ instance Show SemantError where
   show (UndefinedVariable var) = "Variable is undefined: " ++ var
   show (UndefinedMethod method) = "Method is undefined: " ++ method
   show (RedefinedAttribute attr) = "Attribute is redefined: " ++ attr
+  show (RedefinedFormal formal) = "Formal is redefined: " ++ formal
 
 type Classes = M.Map Name Class
 type ObjectEnv = [M.Map Name Type]
@@ -133,7 +134,7 @@ updateObjEnv (Environment classes _) newObjEnv = Environment classes newObjEnv
 -- Monoid?
 emptyObjEnv = []
 mergeEnvs = (++)
-fromMap = (:[])
+mapToObjEnv = (:[])
 
 makeLocalInner :: [Feature] -> M.Map Name Type -> Check (M.Map Name Type)
 makeLocalInner ((Method _ _ _ _):fs) map = makeLocalInner fs map
@@ -147,7 +148,17 @@ makeLocalInner ((Attribute aName aType aInit):fs) map = do
 makeLocalObjEnv :: [Feature] -> Check ObjectEnv
 makeLocalObjEnv features = do
   attrsMap <- makeLocalInner features M.empty
-  return $ fromMap attrsMap
+  return $ mapToObjEnv attrsMap
+
+makeObjEnvFromFormals :: [Formal] -> Check ObjectEnv
+makeObjEnvFromFormals = makeObjEnvFromFormals' M.empty
+  where
+    makeObjEnvFromFormals' :: M.Map Name Type -> [Formal] -> Check ObjectEnv
+    makeObjEnvFromFormals' map ((Formal n t):fs) =
+      case M.lookup n map of
+        Just t -> throwError $ RedefinedFormal n
+        Nothing -> makeObjEnvFromFormals' (M.insert n (Type t) map) fs
+    makeObjEnvFromFormals' map _ = return $ mapToObjEnv map
 
 makeObjEnvForClass :: Class -> Check ObjectEnv
 makeObjEnvForClass (Class "Object" _ _) = return emptyObjEnv
@@ -156,6 +167,19 @@ makeObjEnvForClass (Class name base features) = do
   baseObjEnv <- makeObjEnvForClass baseClass
   localObjEnv <- local (flip updateObjEnv baseObjEnv) (makeLocalObjEnv features)
   return $ mergeEnvs localObjEnv baseObjEnv
+
+conforms :: Type -> Type -> Check ()
+conforms (Type name1) (Type name2) = conformsInner name1
+  where
+    conformsInner n1
+      | n1 == name2 = return ()
+      | n1 == "NO_CLASS" = throwError $ TypeMismatch name1 name2
+      | otherwise = do
+          (Class _ base _) <- lookupClass n1
+          conformsInner base
+conforms m@(TMethod _) t@(Type _) = t `conforms` m
+conforms (Type t) (TMethod _) = throwError $ TypeMismatch t "method"
+conforms _ _ = undefined
 
 checkInheritance :: Program -> Check ()
 checkInheritance = mapM_ checkClassInheritance . programClasses
@@ -175,9 +199,20 @@ checkProgram = mapM_ checkClass . programClasses
 
 checkClass :: Class -> Check ()
 checkClass cls = do
-  -- clsObjEnv <- makeObjEnvForClass cls
-  -- local (flip updateObjEnv clsObjEnv) ask
-  return ()
+  clsObjEnv <- makeObjEnvForClass cls
+  forM_ (classFeatures cls) $ \feature ->
+    local (flip updateObjEnv clsObjEnv) (checkFeature feature)
+
+checkFeature :: Feature -> Check ()
+checkFeature (Method name formals result body) = do
+  methodObjEnv <- makeObjEnvFromFormals formals
+  bodyType <- checkExpr body
+  bodyType `conforms` (Type result)
+
+checkFeature (Attribute name type_ body) = undefined
+
+checkExpr :: Expr -> Check Type
+checkExpr = undefined
 
 semant :: Program -> Either SemantError ()
 semant program = fst $ runWriter (runReaderT (runExceptT $ checkInheritance program) (Environment (classesMap program) []))
