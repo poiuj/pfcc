@@ -18,7 +18,7 @@ data SemantError =
   | CyclicInheritance [Name]
   | UndefinedClass Name
   | UndefinedVariable Name
-  | UndefinedMethod Name
+  | UndefinedMethod Name Name
   | RedefinedAttribute Name
   | RedefinedFormal Name
 
@@ -36,7 +36,7 @@ instance Show SemantError where
   show (CyclicInheritance classes) = "Cyclic inheritance: " ++ showCyclicClasses classes
   show (UndefinedClass cls) = "Class is undefined: " ++ showClass cls
   show (UndefinedVariable var) = "Variable is undefined: " ++ var
-  show (UndefinedMethod method) = "Method is undefined: " ++ method
+  show (UndefinedMethod cls method) = "Method " ++ method ++ " is undefined in class " ++ cls
   show (RedefinedAttribute attr) = "Attribute is redefined: " ++ attr
   show (RedefinedFormal formal) = "Formal is redefined: " ++ formal
 
@@ -114,14 +114,15 @@ lookupMethodInFeatures (method:features) name =
 lookupMethodInFeatures _ _ = Nothing
 
 lookupMethod :: Name -> Name -> Check Type
-lookupMethod className methodName = do
-  classes <- reader envClasses
-  case M.lookup className classes of
-    Just (Class name base features) -> do
-      case lookupMethodInFeatures features methodName of
-        Just t -> return t
-        Nothing -> lookupMethod base methodName
-    Nothing -> throwError $ UndefinedMethod methodName
+lookupMethod className methodName = lookupMethodInner className
+  where lookupMethodInner currentClassName
+          | currentClassName == noClass =
+            throwError $ UndefinedMethod className methodName
+          | otherwise = do
+          cls <- lookupClass currentClassName
+          case lookupMethodInFeatures (classFeatures cls) methodName of
+            Just t -> return t
+            Nothing -> lookupMethodInner $ classBase cls
 
 lookupClass :: Name -> Check Class
 lookupClass name = do
