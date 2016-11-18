@@ -52,6 +52,7 @@ type Check = ExceptT SemantError (ReaderT Environment (Writer [String]))
 
 
 noClass = "NO_CLASS"
+selfType = "SELF_TYPE"
 
 parsedClass cls = case parseClass cls of
   Right classAst -> classAst
@@ -177,6 +178,7 @@ conforms (Type name1) (Type name2) = conformsInner name1
   where
     conformsInner n1
       | n1 == name2 = return ()
+      | n1 == selfType = reader envCurClass >>= conformsInner
       | n1 == noClass = throwError $ TypeMismatch name1 name2
       | otherwise = do
           (Class _ base _) <- lookupClass n1
@@ -205,7 +207,9 @@ checkClass :: Class -> Check ()
 checkClass cls = do
   clsObjEnv <- makeObjEnvForClass cls
   forM_ (classFeatures cls) $ \feature ->
-    local (flip updateObjEnv clsObjEnv) (checkFeature feature)
+    local (updateEnv clsObjEnv (className cls)) (checkFeature feature)
+  where updateEnv obj cls env =
+          env { envObj = obj, envCurClass = cls }
 
 checkFeature :: Feature -> Check ()
 checkFeature (Method name formals result body) = do
