@@ -50,13 +50,15 @@ data Environment = Environment {
 type Check = ExceptT SemantError (ReaderT Environment (Writer [String]))
 
 
+noClass = "NO_CLASS"
+
 parsedClass cls = case parseClass cls of
   Right classAst -> classAst
   Left errorMsg -> error $ show errorMsg
 
 -- Parser assumes that all classes inherit from Object, so we need manual
--- specify "NO_CLASS"
-objectClass = Class "Object" "NO_CLASS" [
+-- specify noClass
+objectClass = Class "Object" noClass [
   Method "abort" [] "Object" NoExpr
   , Method "type_name" [] "String" NoExpr
   , Method "copy" [] "SELF_TYPE" NoExpr]
@@ -173,7 +175,7 @@ conforms (Type name1) (Type name2) = conformsInner name1
   where
     conformsInner n1
       | n1 == name2 = return ()
-      | n1 == "NO_CLASS" = throwError $ TypeMismatch name1 name2
+      | n1 == noClass = throwError $ TypeMismatch name1 name2
       | otherwise = do
           (Class _ base _) <- lookupClass n1
           conformsInner base
