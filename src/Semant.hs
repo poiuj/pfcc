@@ -45,6 +45,7 @@ type ObjectEnv = [M.Map Name Type]
 data Environment = Environment {
   envClasses :: Classes
   , envObj :: ObjectEnv
+  , envCurClass :: Name
   }
 
 type Check = ExceptT SemantError (ReaderT Environment (Writer [String]))
@@ -132,7 +133,7 @@ lookupClass name = do
     Nothing -> throwError $ UndefinedClass name
 
 updateObjEnv :: Environment -> ObjectEnv -> Environment
-updateObjEnv (Environment classes _) newObjEnv = Environment classes newObjEnv
+updateObjEnv env newEnvObj = env { envObj = newEnvObj }
 
 -- Monoid?
 emptyObjEnv = []
@@ -218,4 +219,4 @@ checkExpr :: Expr -> Check Type
 checkExpr = undefined
 
 semant :: Program -> Either SemantError ()
-semant program = fst $ runWriter (runReaderT (runExceptT $ checkInheritance program) (Environment (classesMap program) []))
+semant program = fst $ runWriter (runReaderT (runExceptT $ checkInheritance program) (Environment (classesMap program) [] noClass))
