@@ -138,7 +138,7 @@ updateObjEnv :: Environment -> ObjectEnv -> Environment
 updateObjEnv env newEnvObj = env { envObj = newEnvObj }
 
 -- Monoid?
-emptyObjEnv = []
+emptyObjEnv = [M.singleton "self" (Type selfType)]
 mergeEnvs = (++)
 mapToObjEnv = (:[])
 
