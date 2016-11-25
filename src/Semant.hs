@@ -228,6 +228,9 @@ checkMethod (Method name formals result body) = do
 
 checkExpr :: Expr -> Check Type
 checkExpr NoExpr = return NoType
+checkExpr (Int _) = return $ Type "Int"
+checkExpr (StringConst _) = return $ Type "String"
+checkExpr (BoolConst _) = return $ Type "Bool"
 checkExpr _ = undefined
 
 semantDriver :: Program -> Check ()
