@@ -12,6 +12,7 @@ import qualified Data.Set as S
 data Type =
   Type Name
   | TMethod [Name]
+  | NoType -- stub, conforms with everything
 
 data SemantError =
   TypeMismatch Name Name
@@ -145,10 +146,16 @@ makeLocalInner :: [Feature] -> M.Map Name Type -> Check (M.Map Name Type)
 makeLocalInner ((Method _ _ _ _):fs) map = makeLocalInner fs map
 makeLocalInner [] map = return map
 makeLocalInner ((Attribute aName aType aInit):fs) map = do
+  -- do not use lookupVariable here because we don't want to throw an error
+  -- in case of failure
   previouslyDefinedAttr <- reader $ lookupInObjectEnv aName . envObj
   case previouslyDefinedAttr of
     Just t -> throwError $ RedefinedAttribute aName
-    Nothing -> makeLocalInner fs (M.insert aName (Type aType) map)
+    Nothing -> do
+      let resultType = Type aType
+      initType <- checkExpr aInit
+      resultType `conforms` initType
+      makeLocalInner fs (M.insert aName resultType map)
 
 makeLocalObjEnv :: [Feature] -> Check ObjectEnv
 makeLocalObjEnv features = do
@@ -185,6 +192,8 @@ conforms (Type name1) (Type name2) = conformsInner name1
           conformsInner base
 conforms m@(TMethod _) t@(Type _) = t `conforms` m
 conforms (Type t) (TMethod _) = throwError $ TypeMismatch t "method"
+conforms NoType t2 = return ()
+conforms t1 NoType = NoType `conforms` t1
 conforms _ _ = undefined
 
 checkInheritance :: Program -> Check ()
@@ -220,7 +229,9 @@ checkFeature (Method name formals result body) = do
 checkFeature (Attribute name type_ body) = undefined
 
 checkExpr :: Expr -> Check Type
-checkExpr = undefined
+checkExpr NoExpr = return NoType
+checkExpr _ = undefined
+
 
 semant :: Program -> Either SemantError ()
 semant program = fst $ runWriter (runReaderT (runExceptT $ checkInheritance program) (Environment (classesMap program) [] noClass))
