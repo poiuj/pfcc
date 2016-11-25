@@ -213,25 +213,25 @@ checkProgram :: Program -> Check ()
 checkProgram = mapM_ checkClass . programClasses
 
 checkClass :: Class -> Check ()
-checkClass cls = do
+checkClass cls@(Class name _ features) = do
   clsObjEnv <- makeObjEnvForClass cls
-  forM_ (classFeatures cls) $ \feature ->
-    local (updateEnv clsObjEnv (className cls)) (checkFeature feature)
+  local (updateEnv clsObjEnv name) $ forM_ features checkMethod
   where updateEnv obj cls env =
           env { envObj = obj, envCurClass = cls }
 
-checkFeature :: Feature -> Check ()
-checkFeature (Method name formals result body) = do
+checkMethod :: Feature -> Check ()
+checkMethod (Attribute _ _ _) = return ()
+checkMethod (Method name formals result body) = do
   methodObjEnv <- makeObjEnvFromFormals formals
   bodyType <- checkExpr body
   bodyType `conforms` (Type result)
-
-checkFeature (Attribute name type_ body) = undefined
 
 checkExpr :: Expr -> Check Type
 checkExpr NoExpr = return NoType
 checkExpr _ = undefined
 
+semantDriver :: Program -> Check ()
+semantDriver program = checkInheritance program >> checkProgram program
 
 semant :: Program -> Either SemantError ()
-semant program = fst $ runWriter (runReaderT (runExceptT $ checkInheritance program) (Environment (classesMap program) [] noClass))
+semant program = fst $ runWriter (runReaderT (runExceptT $ semantDriver program) (Environment (classesMap program) [] noClass))
