@@ -63,20 +63,20 @@ parsedClass cls = case parseClass cls of
 objectClass = Class "Object" noClass [
   Method "abort" [] "Object" NoExpr
   , Method "type_name" [] "String" NoExpr
-  , Method "copy" [] "SELF_TYPE" NoExpr]
+  , Method "copy" [] selfType NoExpr]
 
 ioClass = parsedClass "class IO {\
-\out_string(x:String) : SELF_TYPE {{}};\
-\out_int(x : Int) : SELF_TYPE {{}};\
-\in_string() : String {{}};\
-\in_int() : Int {{}}; };"
+\out_string(x:String) : SELF_TYPE {self};\
+\out_int(x : Int) : SELF_TYPE {self};\
+\in_string() : String {\"\"};\
+\in_int() : Int {0}; };"
 
 intClass = parsedClass "class Int {};"
 
 stringClass = parsedClass "class String {\
-\length() : Int {{}};\
-\concat(s : String) : String {{}};\
-\substr(i : Int, l : Int) : String {{}}; };"
+\length() : Int {0};\
+\concat(s : String) : String {self};\
+\substr(i : Int, l : Int) : String {self}; };"
 
 boolClass = parsedClass "class Bool {};"
 

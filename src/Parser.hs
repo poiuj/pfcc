@@ -59,7 +59,7 @@ formal = do
 
 exprs :: Parser Expr
 exprs = do
-  expressions <- braces $ many stmtExpr
+  expressions <- braces $ Comb.many1 stmtExpr
   return $ Compound expressions
 
 stmtExpr :: Parser Expr
