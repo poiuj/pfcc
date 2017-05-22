@@ -134,8 +134,8 @@ lookupClass name = do
     Just cls -> return cls
     Nothing -> throwError $ UndefinedClass name
 
-updateObjEnv :: Environment -> ObjectEnv -> Environment
-updateObjEnv env newEnvObj = env { envObj = newEnvObj }
+updateObjEnv :: ObjectEnv -> Environment -> Environment
+updateObjEnv newEnvObj env = env { envObj = newEnvObj }
 
 -- Monoid?
 emptyObjEnv = [M.singleton "self" (Type selfType)]
@@ -177,7 +177,7 @@ makeObjEnvForClass (Class "Object" _ _) = return emptyObjEnv
 makeObjEnvForClass (Class name base features) = do
   baseClass <- lookupClass base
   baseObjEnv <- makeObjEnvForClass baseClass
-  localObjEnv <- local (flip updateObjEnv baseObjEnv) (makeLocalObjEnv features)
+  localObjEnv <- local (updateObjEnv baseObjEnv) (makeLocalObjEnv features)
   return $ mergeEnvs localObjEnv baseObjEnv
 
 -- T1 `conforms` T2 === T1 <= T2
@@ -224,7 +224,7 @@ checkMethod :: Feature -> Check ()
 checkMethod (Attribute _ _ _) = return ()
 checkMethod (Method name formals result body) = do
   methodObjEnv <- makeObjEnvFromFormals formals
-  bodyType <- local (flip updateObjEnv methodObjEnv) $ checkExpr body
+  bodyType <- local (updateObjEnv methodObjEnv) (checkExpr body)
   bodyType `conforms` (Type result)
 
 checkExpr :: Expr -> Check Type
