@@ -180,6 +180,7 @@ makeObjEnvForClass (Class name base features) = do
   localObjEnv <- local (flip updateObjEnv baseObjEnv) (makeLocalObjEnv features)
   return $ mergeEnvs localObjEnv baseObjEnv
 
+-- T1 `conforms` T2 === T1 <= T2
 conforms :: Type -> Type -> Check ()
 conforms (Type name1) (Type name2) = conformsInner name1
   where
@@ -223,14 +224,22 @@ checkMethod :: Feature -> Check ()
 checkMethod (Attribute _ _ _) = return ()
 checkMethod (Method name formals result body) = do
   methodObjEnv <- makeObjEnvFromFormals formals
-  bodyType <- checkExpr body
+  bodyType <- local (flip updateObjEnv methodObjEnv) $ checkExpr body
   bodyType `conforms` (Type result)
 
 checkExpr :: Expr -> Check Type
 checkExpr NoExpr = return NoType
+
 checkExpr (Int _) = return $ Type "Int"
 checkExpr (StringConst _) = return $ Type "String"
 checkExpr (BoolConst _) = return $ Type "Bool"
+
+checkExpr (Assignment lhs rhs) = do
+  lhsType <- lookupVariable lhs
+  rhsType <- checkExpr rhs
+  rhsType `conforms` lhsType
+  return rhsType
+
 checkExpr _ = undefined
 
 semantDriver :: Program -> Check ()
