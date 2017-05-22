@@ -26,7 +26,6 @@ class_ = do
   semi
   return $ Class name base features
 
--- just Method is implemented right now
 feature :: Parser Feature
 feature = try method <|> attribute
 

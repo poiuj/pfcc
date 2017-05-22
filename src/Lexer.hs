@@ -58,8 +58,8 @@ typeIdentifier :: Parser String
 typeIdentifier = identifier isUpper "TYPE expected"
 
 string :: Parser String
-string = do
-  between (char '"') (char '"') $ many validStringElement
+string =
+  (between (char '"') (char '"') $ many validStringElement) <* whiteSpace
 
 validStringElement :: Parser Char
 validStringElement = escapedChar <|> validChar
