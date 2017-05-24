@@ -242,6 +242,8 @@ checkExpr (Assignment lhs rhs) = do
   rhsType `conforms` lhsType
   return rhsType
 
+checkExpr (New typeName) = return $ Type typeName
+
 checkExpr _ = undefined
 
 semantDriver :: Program -> Check ()
