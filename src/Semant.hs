@@ -234,6 +234,8 @@ checkExpr (Int _) = return $ Type "Int"
 checkExpr (StringConst _) = return $ Type "String"
 checkExpr (BoolConst _) = return $ Type "Bool"
 
+checkExpr (Id name) = lookupVariable name
+
 checkExpr (Assignment lhs rhs) = do
   lhsType <- lookupVariable lhs
   rhsType <- checkExpr rhs
