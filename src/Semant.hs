@@ -3,9 +3,12 @@ module Semant where
 import Syntax
 import Parser (parseClass)
 
+import Data.List (foldl')
+
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.Writer
+
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 
@@ -243,6 +246,8 @@ checkExpr (Assignment lhs rhs) = do
   return rhsType
 
 checkExpr (New typeName) = return $ Type typeName
+
+checkExpr (Compound exprs) = foldl' (\_ -> checkExpr) (return NoType) exprs
 
 checkExpr _ = undefined
 
