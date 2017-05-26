@@ -165,6 +165,11 @@ makeLocalObjEnv features = do
   attrsMap <- makeLocalInner features M.empty
   return $ mapToObjEnv attrsMap
 
+addToObjEnv :: Name -> Type -> Check ObjectEnv
+addToObjEnv x t = do
+  (e:es) <- reader $ envObj
+  return $ (M.insert x t e) : es
+
 makeObjEnvFromFormals :: [Formal] -> Check ObjectEnv
 makeObjEnvFromFormals = makeObjEnvFromFormals' M.empty
   where
@@ -248,6 +253,13 @@ checkExpr (Assignment lhs rhs) = do
 checkExpr (New typeName) = return $ Type typeName
 
 checkExpr (Compound exprs) = foldl' (\_ -> checkExpr) (return NoType) exprs
+
+checkExpr (Let x tname initExpr body) = do
+  initType <- checkExpr initExpr
+  let xType = (Type tname)
+  initType `conforms` xType
+  objEnv' <- addToObjEnv x xType
+  local (updateObjEnv objEnv') (checkExpr body)
 
 checkExpr _ = undefined
 

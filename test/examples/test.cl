@@ -10,6 +10,8 @@ class Test {
 
   checkSeq() : Bool { {123; false; true; "Test"; true;} };
 
+  checkLet() : String { Let a : String <- "foo" in a };
+
   checkAssignInt(a : Int) : Int { a <- 123 };
   checkAssignBool(b: Bool) : Bool { b <- true };
   checkAssignString(c : String) : String { c <- "Test" };
@@ -18,4 +20,5 @@ class Test {
   checkAssignSeq(a : Bool) : Bool { a <-
     { 123; false; true; "Test"; false; }
   };
+  checkAssignLet(a : String) : String { a <- let b : String <- "bar" in b };
 };
