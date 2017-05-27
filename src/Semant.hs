@@ -16,6 +16,7 @@ data Type =
   Type Name
   | TMethod [Name]
   | NoType -- stub, conforms with everything
+  deriving (Eq)
 
 data SemantError =
   TypeMismatch Name Name
@@ -75,13 +76,16 @@ ioClass = parsedClass "class IO {\
 \in_string() : String {\"\"};\
 \in_int() : Int {0}; };"
 
-intClass = parsedClass "class Int {};"
+intType = (Type "Int")
+intClass = parsedClass $ "class Int {};"
 
+stringType = (Type "String")
 stringClass = parsedClass "class String {\
 \length() : Int {0};\
 \concat(s : String) : String {self};\
 \substr(i : Int, l : Int) : String {self}; };"
 
+boolType = (Type "Bool")
 boolClass = parsedClass "class Bool {};"
 
 basicClasses :: [Class]
@@ -188,6 +192,13 @@ makeObjEnvForClass (Class name base features) = do
   localObjEnv <- local (updateObjEnv baseObjEnv) (makeLocalObjEnv features)
   return $ mergeEnvs localObjEnv baseObjEnv
 
+throwTypeMismatch :: Type -> Type -> Check ()
+throwTypeMismatch (Type name1) (Type name2) =
+  throwError $ TypeMismatch name1 name2
+throwTypeMismatch (Type tName) (TMethod _) =
+  throwError $ TypeMismatch tName "method"
+throwTypeMismatch m@(TMethod _) t@(Type _) = throwTypeMismatch t m
+
 -- T1 `conforms` T2 === T1 <= T2
 conforms :: Type -> Type -> Check ()
 conforms (Type name1) (Type name2) = conformsInner name1
@@ -199,11 +210,16 @@ conforms (Type name1) (Type name2) = conformsInner name1
       | otherwise = do
           (Class _ base _) <- lookupClass n1
           conformsInner base
-conforms m@(TMethod _) t@(Type _) = t `conforms` m
-conforms (Type t) (TMethod _) = throwError $ TypeMismatch t "method"
 conforms NoType t2 = return ()
 conforms t1 NoType = NoType `conforms` t1
-conforms _ _ = undefined
+conforms t1 t2 = throwTypeMismatch t1 t2
+
+hasType :: Expr -> Type -> Check ()
+hasType expr expectedType = do
+  exprType <- checkExpr expr
+  if exprType == expectedType
+    then return ()
+    else throwTypeMismatch exprType expectedType
 
 checkInheritance :: Program -> Check ()
 checkInheritance = mapM_ checkClassInheritance . programClasses
@@ -238,9 +254,9 @@ checkMethod (Method name formals result body) = do
 checkExpr :: Expr -> Check Type
 checkExpr NoExpr = return NoType
 
-checkExpr (Int _) = return $ Type "Int"
-checkExpr (StringConst _) = return $ Type "String"
-checkExpr (BoolConst _) = return $ Type "Bool"
+checkExpr (Int _) = return intType
+checkExpr (StringConst _) = return stringType
+checkExpr (BoolConst _) = return boolType
 
 checkExpr (Id name) = lookupVariable name
 
@@ -260,6 +276,10 @@ checkExpr (Let x tname initExpr body) = do
   initType `conforms` xType
   objEnv' <- addToObjEnv x xType
   local (updateObjEnv objEnv') (checkExpr body)
+
+checkExpr (UnExpr Not expr) = expr `hasType` boolType >> return boolType
+checkExpr (UnExpr Complement expr) = expr `hasType` intType >> return intType
+checkExpr (UnExpr IsVoid expr) = return boolType
 
 checkExpr _ = undefined
 

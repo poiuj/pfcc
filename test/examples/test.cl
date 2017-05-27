@@ -12,6 +12,10 @@ class Test {
 
   checkLet() : String { Let a : String <- "foo" in a };
 
+  checkNot(a : Bool) : Bool { not a };
+  checkComp(a : Int) : Int { ~a };
+  checkIsVoid(a : Test) : Bool { isvoid a };
+
   checkAssignInt(a : Int) : Int { a <- 123 };
   checkAssignBool(b: Bool) : Bool { b <- true };
   checkAssignString(c : String) : String { c <- "Test" };
