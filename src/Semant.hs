@@ -251,6 +251,10 @@ checkMethod (Method name formals result body) = do
   bodyType <- local (updateObjEnv methodObjEnv) (checkExpr body)
   bodyType `conforms` (Type result)
 
+checkArith :: Expr -> Expr -> Check Type
+checkArith e1 e2 =
+  e1 `hasType` intType >> e2 `hasType` intType >> return intType
+
 checkExpr :: Expr -> Check Type
 checkExpr NoExpr = return NoType
 
@@ -280,6 +284,11 @@ checkExpr (Let x tname initExpr body) = do
 checkExpr (UnExpr Not expr) = expr `hasType` boolType >> return boolType
 checkExpr (UnExpr Complement expr) = expr `hasType` intType >> return intType
 checkExpr (UnExpr IsVoid expr) = return boolType
+
+checkExpr (BinExpr Mul e1 e2) = checkArith e1 e2
+checkExpr (BinExpr Div e1 e2) = checkArith e1 e2
+checkExpr (BinExpr Plus e1 e2) = checkArith e1 e2
+checkExpr (BinExpr Minus e1 e2) = checkArith e1 e2
 
 checkExpr _ = undefined
 

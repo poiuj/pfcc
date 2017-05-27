@@ -16,6 +16,11 @@ class Test {
   checkComp(a : Int) : Int { ~a };
   checkIsVoid(a : Test) : Bool { isvoid a };
 
+  checkMul(a : Int, b : Int) : Int { a * b };
+  checkDiv(a : Int, b : Int) : Int { a / b };
+  checkPlus(a : Int, b : Int) : Int { a + b };
+  checkMinus(a : Int, b : Int) : Int { a - b };
+
   checkAssignInt(a : Int) : Int { a <- 123 };
   checkAssignBool(b: Bool) : Bool { b <- true };
   checkAssignString(c : String) : String { c <- "Test" };
