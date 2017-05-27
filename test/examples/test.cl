@@ -21,6 +21,9 @@ class Test {
   checkPlus(a : Int, b : Int) : Int { a + b };
   checkMinus(a : Int, b : Int) : Int { a - b };
 
+  checkLe(a : Int, b : Int) : Bool { a <= b };
+  checkLt(a : Int, b : Int) : Bool { a < b };
+
   checkAssignInt(a : Int) : Int { a <- 123 };
   checkAssignBool(b: Bool) : Bool { b <- true };
   checkAssignString(c : String) : String { c <- "Test" };

@@ -255,6 +255,10 @@ checkArith :: Expr -> Expr -> Check Type
 checkArith e1 e2 =
   e1 `hasType` intType >> e2 `hasType` intType >> return intType
 
+checkCompare :: Expr -> Expr -> Check Type
+checkCompare e1 e2 =
+  e1 `hasType` intType >> e2 `hasType` intType >> return boolType
+
 checkExpr :: Expr -> Check Type
 checkExpr NoExpr = return NoType
 
@@ -289,6 +293,11 @@ checkExpr (BinExpr Mul e1 e2) = checkArith e1 e2
 checkExpr (BinExpr Div e1 e2) = checkArith e1 e2
 checkExpr (BinExpr Plus e1 e2) = checkArith e1 e2
 checkExpr (BinExpr Minus e1 e2) = checkArith e1 e2
+
+checkExpr (BinExpr Le e1 e2) = checkCompare e1 e2
+checkExpr (BinExpr Lt e1 e2) = checkCompare e1 e2
+
+
 
 checkExpr _ = undefined
 
