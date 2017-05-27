@@ -1,3 +1,6 @@
+class Foo { };
+class Bar { };
+
 class Test {
   checkInt() : Int { 1 };
   checkTrue() : Bool { true };
@@ -23,6 +26,13 @@ class Test {
 
   checkLe(a : Int, b : Int) : Bool { a <= b };
   checkLt(a : Int, b : Int) : Bool { a < b };
+
+  checkIntEq(a : Int, b : Int) : Bool { a = b };
+  checkStringEq(a : String, b : String) : Bool { a = b };
+  checkBool(a : Bool, b : Bool) : Bool { a = b};
+
+  checkObjEq(a : Test, b : Test) : Bool { a = b };
+  checkObjEq2(a : Foo, b : Bar) : Bool { a = b };
 
   checkAssignInt(a : Int) : Int { a <- 123 };
   checkAssignBool(b: Bool) : Bool { b <- true };

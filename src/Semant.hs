@@ -214,12 +214,19 @@ conforms NoType t2 = return ()
 conforms t1 NoType = NoType `conforms` t1
 conforms t1 t2 = throwTypeMismatch t1 t2
 
+isType :: Type -> Type -> Check ()
+isType actualType expectedType =
+  if actualType == expectedType
+    then return ()
+    else throwTypeMismatch actualType expectedType
+
 hasType :: Expr -> Type -> Check ()
 hasType expr expectedType = do
   exprType <- checkExpr expr
-  if exprType == expectedType
-    then return ()
-    else throwTypeMismatch exprType expectedType
+  exprType `isType` expectedType
+
+isPrimitiveType :: Type -> Bool
+isPrimitiveType = (`elem` [intType, stringType, boolType])
 
 checkInheritance :: Program -> Check ()
 checkInheritance = mapM_ checkClassInheritance . programClasses
@@ -297,7 +304,12 @@ checkExpr (BinExpr Minus e1 e2) = checkArith e1 e2
 checkExpr (BinExpr Le e1 e2) = checkCompare e1 e2
 checkExpr (BinExpr Lt e1 e2) = checkCompare e1 e2
 
-
+checkExpr (BinExpr Eq e1 e2) = do
+  t1 <- checkExpr e1
+  t2 <- checkExpr e2
+  if (isPrimitiveType t1 || isPrimitiveType t2)
+    then t1 `isType` t2 >> return boolType
+    else return boolType
 
 checkExpr _ = undefined
 
