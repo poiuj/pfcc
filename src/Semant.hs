@@ -14,7 +14,7 @@ import qualified Data.Set as S
 
 data Type =
   Type Name
-  | TMethod [Name]
+  | TMethod [Type]
   | NoType -- stub, conforms with everything
   deriving (Eq)
 
@@ -57,7 +57,8 @@ type Check = ExceptT SemantError (ReaderT Environment (Writer [String]))
 
 
 noClass = "NO_CLASS"
-selfType = "SELF_TYPE"
+selfTypeName = "SELF_TYPE"
+selfType = Type selfTypeName
 
 parsedClass cls = case parseClass cls of
   Right classAst -> classAst
@@ -68,7 +69,7 @@ parsedClass cls = case parseClass cls of
 objectClass = Class "Object" noClass [
   Method "abort" [] "Object" NoExpr
   , Method "type_name" [] "String" NoExpr
-  , Method "copy" [] selfType NoExpr]
+  , Method "copy" [] selfTypeName NoExpr]
 
 ioClass = parsedClass "class IO {\
 \out_string(x:String) : SELF_TYPE {self};\
@@ -109,8 +110,12 @@ lookupVariable name = do
     Just t -> return t
     Nothing -> throwError $ UndefinedVariable name
 
+makeFormalType :: Formal -> Type
+makeFormalType = Type . formalType
+
 makeMethodType :: [Formal] -> Name -> Type
-makeMethodType formals result = TMethod $ (map formalType formals) ++ [result]
+makeMethodType formals result =
+  TMethod $ (map makeFormalType formals) ++ [(Type result)]
 
 lookupMethodInFeatures :: [Feature] -> Name -> Maybe Type
 lookupMethodInFeatures (method:features) name =
@@ -123,8 +128,8 @@ lookupMethodInFeatures (method:features) name =
     _ -> lookupMethodInFeatures features name
 lookupMethodInFeatures _ _ = Nothing
 
-lookupMethod :: Name -> Name -> Check Type
-lookupMethod className methodName = lookupMethodInner className
+lookupMethod :: Type -> Name -> Check Type
+lookupMethod (Type className) methodName = lookupMethodInner className
   where lookupMethodInner currentClassName
           | currentClassName == noClass =
             throwError $ UndefinedMethod className methodName
@@ -145,7 +150,7 @@ updateObjEnv :: ObjectEnv -> Environment -> Environment
 updateObjEnv newEnvObj env = env { envObj = newEnvObj }
 
 -- Monoid?
-emptyObjEnv = [M.singleton "self" (Type selfType)]
+emptyObjEnv = [M.singleton "self" selfType]
 mergeEnvs = (++)
 mapToObjEnv = (:[])
 
@@ -205,7 +210,7 @@ conforms (Type name1) (Type name2) = conformsInner name1
   where
     conformsInner n1
       | n1 == name2 = return ()
-      | n1 == selfType = reader envCurClass >>= conformsInner
+      | n1 == selfTypeName = reader envCurClass >>= conformsInner
       | n1 == noClass = throwError $ TypeMismatch name1 name2
       | otherwise = do
           (Class _ base _) <- lookupClass n1
@@ -310,6 +315,23 @@ checkExpr (BinExpr Eq e1 e2) = do
   if (isPrimitiveType t1 || isPrimitiveType t2)
     then t1 `isType` t2 >> return boolType
     else return boolType
+
+checkExpr (Call expr name args) = do
+  exprType <- checkExpr expr
+  actualTypes <- forM args checkExpr
+
+  exprType' <- if (exprType == selfType)
+                 then reader $ Type . envCurClass
+                 else return exprType
+
+  (TMethod formalTypes) <- lookupMethod exprType' name
+
+  zipWithM_ conforms (init actualTypes) (init formalTypes)
+
+  let returnType' = last formalTypes
+  if returnType' == selfType
+    then return exprType
+    else return returnType'
 
 checkExpr _ = undefined
 

@@ -34,6 +34,10 @@ class Test {
   checkObjEq(a : Test, b : Test) : Bool { a = b };
   checkObjEq2(a : Foo, b : Bar) : Bool { a = b };
 
+  checkCall(t : Test, a : String, b : String) : Bool {
+    t.checkStringEq(a, b)
+  };
+
   checkAssignInt(a : Int) : Int { a <- 123 };
   checkAssignBool(b: Bool) : Bool { b <- true };
   checkAssignString(c : String) : String { c <- "Test" };
