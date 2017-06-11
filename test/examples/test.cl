@@ -1,5 +1,11 @@
-class Foo { };
-class Bar { };
+
+class Foo {
+  foobar(a : Int) : String { "foo" };
+};
+
+class Bar inherits Foo {
+  foobar(a: Int) : String { "bar" };
+};
 
 class Test {
   checkInt() : Int { 1 };
@@ -36,6 +42,10 @@ class Test {
 
   checkCall(t : Test, a : String, b : String) : Bool {
     t.checkStringEq(a, b)
+  };
+
+  checkStaticCall(a: Bar) : String {
+    a@Foo.foobar(1)
   };
 
   checkAssignInt(a : Int) : Int { a <- 123 };

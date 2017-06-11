@@ -333,6 +333,22 @@ checkExpr (Call expr name args) = do
     then return exprType
     else return returnType'
 
+checkExpr (StaticCall expr className methodName args) = do
+  exprType <- checkExpr expr
+  actualTypes <- forM args checkExpr
+
+  let classType = (Type className)
+  exprType `conforms` classType
+
+  (TMethod formalTypes) <- lookupMethod classType methodName
+
+  zipWithM_ conforms (init actualTypes) (init formalTypes)
+
+  let returnType' = last formalTypes
+  if returnType' == selfType
+    then return exprType
+    else return returnType'
+
 checkExpr _ = undefined
 
 semantDriver :: Program -> Check ()
