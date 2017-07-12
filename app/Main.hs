@@ -2,6 +2,7 @@ module Main where
 
 import Parser
 import Semant
+import Emit
 
 import System.Environment
 import System.Console.GetOpt
@@ -9,12 +10,17 @@ import System.Console.GetOpt
 import Control.Monad
 
 
-data Flag = Parse | Semant deriving Show
+data Flag =
+  Parse
+  | Semant
+  | CodeGen
+  deriving Show
 
 options :: [OptDescr Flag]
 options = [
   Option "p" ["parse"] (NoArg Parse) "Parse a program and print out an AST."
   , Option "s" ["semant"] (NoArg Semant) "Parse a program and run semantic analysis. Print out an annotated AST."
+  , Option "c" ["codegen"] (NoArg CodeGen) "Generate LLVM code"
   ]
 
 getOptions :: [String] -> IO (Flag, [FilePath])
@@ -50,3 +56,4 @@ main = do
   case option of
     Parse -> forM_ files runParser
     Semant -> forM_ files runSemant
+    CodeGen -> codeGenMock

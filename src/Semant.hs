@@ -271,6 +271,7 @@ checkCompare :: Expr -> Expr -> Check Type
 checkCompare e1 e2 =
   e1 `hasType` intType >> e2 `hasType` intType >> return boolType
 
+
 checkExpr :: Expr -> Check Type
 checkExpr NoExpr = return NoType
 
@@ -350,6 +351,7 @@ checkExpr (StaticCall expr className methodName args) = do
     else return returnType'
 
 checkExpr _ = undefined
+
 
 semantDriver :: Program -> Check ()
 semantDriver program = checkInheritance program >> checkProgram program
