@@ -1,31 +1,32 @@
 module Emit where
 
+import Syntax
+
 import LLVM.Module
 import LLVM.AST as AST
 import LLVM.Context
 
 import Control.Monad.Except
 
-myModule :: AST.Module
-myModule = defaultModule { moduleName = "test empty module" }
-
-printModule :: LLVM.Module.Module -> IO String
-printModule = moduleLLVMAssembly
-
-runCodeGen :: ExceptT String IO String -> IO String
-runCodeGen e = do
+runEmit :: ExceptT String IO String -> IO String
+runEmit e = do
   result <- runExceptT e
   case result of
     Right code -> return code
     Left error -> putStrLn error >> return ""
 
-genWithContext :: Context -> IO String
-genWithContext ctx =
-  runCodeGen $ withModuleFromAST ctx myModule printModule
+emitInContext :: AST.Module -> Context -> IO String
+emitInContext fileModule ctx =
+  runEmit $ withModuleFromAST ctx fileModule moduleLLVMAssembly
 
-codeGenMock :: IO ()
-codeGenMock = do
-  code <- withContext genWithContext
-  putStrLn code
-  return ()
+makeModule :: FilePath -> AST.Module
+makeModule filepath =
+  defaultModule {
+  moduleName = filepath,
+  moduleSourceFileName = filepath
+  }
 
+emit :: FilePath -> Program -> IO String
+emit filepath ast = do
+  let fileModule = makeModule filepath
+  withContext $ emitInContext fileModule

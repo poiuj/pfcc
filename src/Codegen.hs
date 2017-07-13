@@ -2,6 +2,8 @@
 
 module Codegen where
 
+import Syntax
+
 import Control.Monad.State
 
 import LLVM.AST

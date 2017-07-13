@@ -49,6 +49,13 @@ runSemant file = do
     (Right ()) -> putStrLn $ show ast
     (Left err) -> error $ show err
 
+runCodegen :: FilePath -> IO ()
+runCodegen file = do
+  ast <- runParserInner file
+  case semant ast of
+    Right () -> emit file ast >>= putStrLn
+    Left err -> error $ show err
+
 main :: IO ()
 main = do
   argv <- getArgs
@@ -56,4 +63,4 @@ main = do
   case option of
     Parse -> forM_ files runParser
     Semant -> forM_ files runSemant
-    CodeGen -> codeGenMock
+    CodeGen -> forM_ files runCodegen
