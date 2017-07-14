@@ -1,6 +1,7 @@
 module Emit where
 
 import Syntax
+import Codegen
 
 import LLVM.Module
 import LLVM.AST as AST
@@ -26,7 +27,19 @@ makeModule filepath =
   moduleSourceFileName = filepath
   }
 
+isMethod :: Feature -> Bool
+isMethod (Method _ _ _ _) = True
+isMethod _ = False
+
+getAllMethodsInClass :: Class -> [Feature]
+getAllMethodsInClass (Class _ _ features) = filter isMethod features
+
+getAllMethods :: Program -> [Feature]
+getAllMethods = concat . map getAllMethodsInClass . programClasses
+
 emit :: FilePath -> Program -> IO String
 emit filepath ast = do
   let fileModule = makeModule filepath
-  withContext $ emitInContext fileModule
+  let finalModule =
+        runLLVM fileModule . mapM codegenTop . getAllMethods $ ast
+  withContext $ emitInContext finalModule
