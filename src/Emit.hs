@@ -27,19 +27,9 @@ makeModule filepath =
   moduleSourceFileName = filepath
   }
 
-isMethod :: Feature -> Bool
-isMethod (Method _ _ _ _) = True
-isMethod _ = False
-
-getAllMethodsInClass :: Class -> [Feature]
-getAllMethodsInClass (Class _ _ features) = filter isMethod features
-
-getAllMethods :: Program -> [Feature]
-getAllMethods = concat . map getAllMethodsInClass . programClasses
-
 emit :: FilePath -> Program -> IO String
 emit filepath ast = do
   let fileModule = makeModule filepath
   let finalModule =
-        runLLVM fileModule . mapM codegenTop . getAllMethods $ ast
+        runLLVM fileModule . mapM codegenTop . programClasses $ ast
   withContext $ emitInContext finalModule

@@ -28,5 +28,9 @@ defun funcName = addDefinition $
   }
 
 
-codegenTop :: Feature -> LLVM ()
-codegenTop (Method name formals result body) = defun name
+codegenTop :: Class -> LLVM ()
+codegenTop (Class name _ features) = mapM_ (codegenMethod name) features
+
+codegenMethod :: Syntax.Name -> Feature -> LLVM ()
+codegenMethod currClassName (Method name _ _ _) = defun $ currClassName ++ "." ++ name
+codegenMethod _ _ = return ()
