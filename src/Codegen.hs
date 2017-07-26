@@ -6,11 +6,22 @@ import Syntax
 
 import Control.Monad.State
 
+import Data.Map.Lazy as M
+
 import LLVM.AST as AST
 import LLVM.AST.Global
+import LLVM.AST.Type
 
 newtype LLVM a = LLVM (State AST.Module a)
   deriving (Functor, Applicative, Monad, MonadState AST.Module)
+
+types = fromList [
+  -- basic classes
+  ("String" , ptr i32),
+  ("Int", i32),
+  ("Bool", i1),
+  ("Object", ptr i32),
+  ("IO", ptr i32)]
 
 runLLVM :: AST.Module -> (LLVM a) -> AST.Module
 runLLVM mod (LLVM m) = execState m mod
@@ -20,11 +31,14 @@ addDefinition definition = do
   definitions <- gets moduleDefinitions
   modify $ \m -> m { moduleDefinitions = definition : definitions }
 
-defun :: String -> LLVM ()
-defun funcName = addDefinition $
+defun ::  Syntax.Name -> Syntax.Name -> [Formal] -> Syntax.Name -> Expr -> LLVM ()
+defun className methodName formals returnTypeName body = addDefinition $
   GlobalDefinition $ functionDefaults {
-  name = Name funcName
-  , returnType = VoidType
+  name = Name $ className ++ "." ++ methodName
+  , returnType = case M.lookup returnTypeName types of
+      (Just _type) -> _type
+      -- default case is pointer to object
+      Nothing -> ptr i32
   }
 
 
@@ -32,5 +46,5 @@ codegenTop :: Class -> LLVM ()
 codegenTop (Class name _ features) = mapM_ (codegenMethod name) features
 
 codegenMethod :: Syntax.Name -> Feature -> LLVM ()
-codegenMethod currClassName (Method name _ _ _) = defun $ currClassName ++ "." ++ name
+codegenMethod currClassName (Method name formals return body) = defun currClassName name formals return body
 codegenMethod _ _ = return ()
