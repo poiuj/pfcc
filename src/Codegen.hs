@@ -31,14 +31,22 @@ addDefinition definition = do
   definitions <- gets moduleDefinitions
   modify $ \m -> m { moduleDefinitions = definition : definitions }
 
+toLLVMType :: Syntax.Name -> Type
+toLLVMType typeName =
+  case M.lookup typeName types of
+      (Just _type) -> _type
+      -- default case is pointer to object
+      Nothing -> ptr i32
+
+toLLVMFormal :: Formal -> Parameter
+toLLVMFormal (Formal name typeName) = Parameter (toLLVMType typeName) (Name name) []
+
 defun ::  Syntax.Name -> Syntax.Name -> [Formal] -> Syntax.Name -> Expr -> LLVM ()
 defun className methodName formals returnTypeName body = addDefinition $
   GlobalDefinition $ functionDefaults {
   name = Name $ className ++ "." ++ methodName
-  , returnType = case M.lookup returnTypeName types of
-      (Just _type) -> _type
-      -- default case is pointer to object
-      Nothing -> ptr i32
+  , parameters = (fmap toLLVMFormal formals, False)
+  , returnType = toLLVMType returnTypeName
   }
 
 
