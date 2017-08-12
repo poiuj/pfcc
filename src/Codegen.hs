@@ -41,11 +41,14 @@ toLLVMType typeName =
 toLLVMFormal :: Formal -> Parameter
 toLLVMFormal (Formal name typeName) = Parameter (toLLVMType typeName) (Name name) []
 
+self :: Parameter
+self = Parameter (ptr i32) (Name "self") []
+
 defun ::  Syntax.Name -> Syntax.Name -> [Formal] -> Syntax.Name -> Expr -> LLVM ()
 defun className methodName formals returnTypeName body = addDefinition $
   GlobalDefinition $ functionDefaults {
   name = Name $ className ++ "." ++ methodName
-  , parameters = (fmap toLLVMFormal formals, False)
+  , parameters = (self : (fmap toLLVMFormal formals), False)
   , returnType = toLLVMType returnTypeName
   }
 
