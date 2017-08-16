@@ -11,6 +11,7 @@ import Data.Map.Lazy as M
 import LLVM.AST as AST
 import LLVM.AST.Global
 import LLVM.AST.Type
+import LLVM.AST.Instruction
 
 newtype LLVM a = LLVM (State AST.Module a)
   deriving (Functor, Applicative, Monad, MonadState AST.Module)
@@ -44,12 +45,17 @@ toLLVMFormal (Formal name typeName) = Parameter (toLLVMType typeName) (Name name
 self :: Parameter
 self = Parameter (ptr i32) (Name "self") []
 
+genBody :: [BasicBlock]
+genBody = return $
+  BasicBlock (Name "entry") [] (Do $ Ret Nothing [])
+
 defun ::  Syntax.Name -> Syntax.Name -> [Formal] -> Syntax.Name -> Expr -> LLVM ()
 defun className methodName formals returnTypeName body = addDefinition $
   GlobalDefinition $ functionDefaults {
   name = Name $ className ++ "." ++ methodName
   , parameters = (self : (fmap toLLVMFormal formals), False)
   , returnType = toLLVMType returnTypeName
+  , basicBlocks = genBody
   }
 
 
