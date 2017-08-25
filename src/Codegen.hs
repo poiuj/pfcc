@@ -9,12 +9,26 @@ import Control.Monad.State
 import Data.Map.Lazy as M
 
 import LLVM.AST as AST
+import LLVM.AST.Constant as Const
 import LLVM.AST.Global
 import LLVM.AST.Type
 import LLVM.AST.Instruction
+import LLVM.AST.Operand
 
 newtype LLVM a = LLVM (State AST.Module a)
   deriving (Functor, Applicative, Monad, MonadState AST.Module)
+
+
+type NamesMap = M.Map Syntax.Name Operand
+
+data CodeGenState = CodeGenState {
+  namesMap :: NamesMap
+  , instructions :: [Named Instruction]
+  }
+emptyCodeGenState = CodeGenState M.empty []
+
+newtype CodeGen a = CodeGen { runCodeGen :: State CodeGenState a }
+  deriving (Functor, Applicative, Monad, MonadState CodeGenState)
 
 types = fromList [
   -- basic classes
@@ -45,9 +59,24 @@ toLLVMFormal (Formal name typeName) = Parameter (toLLVMType typeName) (Name name
 self :: Parameter
 self = Parameter (ptr i32) (Name "self") []
 
-genBody :: [BasicBlock]
-genBody = return $
-  BasicBlock (Name "entry") [] (Do $ Ret Nothing [])
+genActuals :: [Formal] -> [Named Instruction]
+genActuals formals = []
+
+-- expressions
+cgen :: Expr -> CodeGen Operand
+cgen (Syntax.Int i) = return $ ConstantOperand $ Const.Int 32 i
+
+cgen (BoolConst bool) = return $ ConstantOperand $ Const.Int 1 $
+  if bool then 1 else 0
+
+cgen _ = return $ ConstantOperand $ Const.Int 32 0
+
+genBody :: [Formal] -> Expr -> [BasicBlock]
+genBody formals expr =
+  let (value, state) = runState (runCodeGen $ cgen expr) emptyCodeGenState in
+    [BasicBlock (Name "entry")
+      (instructions state)
+      (Do $ Ret (Just value) [])]
 
 defun ::  Syntax.Name -> Syntax.Name -> [Formal] -> Syntax.Name -> Expr -> LLVM ()
 defun className methodName formals returnTypeName body = addDefinition $
@@ -55,7 +84,7 @@ defun className methodName formals returnTypeName body = addDefinition $
   name = Name $ className ++ "." ++ methodName
   , parameters = (self : (fmap toLLVMFormal formals), False)
   , returnType = toLLVMType returnTypeName
-  , basicBlocks = genBody
+  , basicBlocks = genBody formals body
   }
 
 
