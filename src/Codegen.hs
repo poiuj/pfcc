@@ -91,6 +91,11 @@ cgen (Syntax.Int i) = return $ ConstantOperand $ Const.Int 32 i
 cgen (BoolConst bool) = return $ ConstantOperand $ Const.Int 1 $
   if bool then 1 else 0
 
+cgen (Id name) = do
+  names <- gets namesMap
+  let (Just varAddr) = M.lookup name names
+  load varAddr
+
 cgen _ = return $ ConstantOperand $ Const.Int 32 0
 
 genActual :: Formal -> CodeGen ()
