@@ -15,6 +15,8 @@ import LLVM.AST.Type
 import LLVM.AST.Instruction
 import LLVM.AST.Operand
 
+defaultAlignment = 32
+
 newtype LLVM a = LLVM (State AST.Module a)
   deriving (Functor, Applicative, Monad, MonadState AST.Module)
 
@@ -24,8 +26,9 @@ type NamesMap = M.Map Syntax.Name Operand
 data CodeGenState = CodeGenState {
   namesMap :: NamesMap
   , instructions :: [Named Instruction]
+  , valueIndex :: Word
   }
-emptyCodeGenState = CodeGenState M.empty []
+emptyCodeGenState = CodeGenState M.empty [] 0
 
 newtype CodeGen a = CodeGen { runCodeGen :: State CodeGenState a }
   deriving (Functor, Applicative, Monad, MonadState CodeGenState)
@@ -62,6 +65,25 @@ self = Parameter (ptr i32) (Name "self") []
 genActuals :: [Formal] -> [Named Instruction]
 genActuals formals = []
 
+getNextValueName :: CodeGen AST.Name
+getNextValueName = do
+  currValueIndex <- gets valueIndex
+  let nextValueIndex = currValueIndex + 1
+  modify $ \s -> s { valueIndex = nextValueIndex }
+  return $ UnName nextValueIndex
+
+getPointerType :: Type -> Type
+getPointerType (PointerType referentType _) = referentType
+getPointerType _ = error "Internal error. Can't get pointer referent's type from a non-pointer type"
+
+load :: Operand -> CodeGen Operand
+load addr@(LocalReference addrType _) = do
+  valueName <- getNextValueName
+  let loadInstruction = valueName := Load False addr Nothing 32 []
+  instructionStack <- gets instructions
+  modify $ \s -> s { instructions = instructionStack ++ [loadInstruction] }
+  return $ LocalReference (getPointerType addrType) valueName
+
 -- expressions
 cgen :: Expr -> CodeGen Operand
 cgen (Syntax.Int i) = return $ ConstantOperand $ Const.Int 32 i
@@ -71,9 +93,24 @@ cgen (BoolConst bool) = return $ ConstantOperand $ Const.Int 1 $
 
 cgen _ = return $ ConstantOperand $ Const.Int 32 0
 
+genActual :: Formal -> CodeGen ()
+genActual (Formal name typeName) = do
+  actualAddr <- getNextValueName
+  let formalLLVMType = toLLVMType typeName
+  let allocaInstruction =
+        actualAddr := Alloca formalLLVMType Nothing defaultAlignment []
+  let actualAddrOperand = LocalReference formalLLVMType actualAddr
+  let storeInstruction =
+        Do $ Store False actualAddrOperand (LocalReference formalLLVMType (Name name)) Nothing defaultAlignment []
+  instructionStack <- gets instructions
+  names <- gets namesMap
+  modify $ \s -> s { instructions = instructionStack ++ allocaInstruction : [storeInstruction]
+                   , namesMap = M.insert name actualAddrOperand names }
+
 genBody :: [Formal] -> Expr -> [BasicBlock]
 genBody formals expr =
-  let (value, state) = runState (runCodeGen $ cgen expr) emptyCodeGenState in
+  let codegen = mapM genActual formals >> cgen expr
+      (value, state) = runState (runCodeGen codegen) emptyCodeGenState in
     [BasicBlock (Name "entry")
       (instructions state)
       (Do $ Ret (Just value) [])]
