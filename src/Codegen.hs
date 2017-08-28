@@ -12,7 +12,7 @@ import LLVM.AST as AST
 import LLVM.AST.Constant as Const
 import LLVM.AST.Global
 import LLVM.AST.Type
-import LLVM.AST.Instruction
+import LLVM.AST.Instruction as Instruction
 import LLVM.AST.Operand
 
 defaultAlignment = 32
@@ -95,6 +95,46 @@ cgen (Id name) = do
   names <- gets namesMap
   let (Just varAddr) = M.lookup name names
   load varAddr
+
+cgen (BinExpr Plus e1 e2) = do
+  op1 <- cgen e1
+  op2 <- cgen e2
+  resultName <- getNextValueName
+  let addInstruction = resultName := Instruction.Add False False op1 op2 []
+  instructionStack <- gets instructions
+  modify $ \s -> s { instructions = instructionStack ++ [addInstruction] }
+  -- TODO: Move knowledge about type of Plus expressions somewhere.
+  -- It would help in case of adding the float and double types
+  return $ LocalReference i32 resultName
+
+-- TODO: Refactoring is needed. All BinExpr expressions are the same.
+cgen (BinExpr Minus e1 e2) = do
+  op1 <- cgen e1
+  op2 <- cgen e2
+  resultName <- getNextValueName
+  let minusInstruction = resultName := Instruction.Sub False False op1 op2 []
+  instructionStack <- gets instructions
+  modify $ \s -> s { instructions = instructionStack ++ [minusInstruction] }
+  return $ LocalReference i32 resultName
+
+cgen (BinExpr Syntax.Mul e1 e2) = do
+  op1 <- cgen e1
+  op2 <- cgen e2
+  resultName <- getNextValueName
+  let mulInstruction = resultName := Instruction.Mul False False op1 op2 []
+  instructionStack <- gets instructions
+  modify $ \s -> s { instructions = instructionStack ++ [mulInstruction] }
+  return $ LocalReference i32 resultName
+
+cgen (BinExpr Div e1 e2) = do
+  op1 <- cgen e1
+  op2 <- cgen e2
+  resultName <- getNextValueName
+  let divInstruction = resultName := Instruction.SDiv False op1 op2 []
+  instructionStack <- gets instructions
+  modify $ \s -> s { instructions = instructionStack ++ [divInstruction] }
+  return $ LocalReference i32 resultName
+
 
 cgen _ = return $ ConstantOperand $ Const.Int 32 0
 
