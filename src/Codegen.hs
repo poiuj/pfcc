@@ -14,6 +14,7 @@ import LLVM.AST.Global
 import LLVM.AST.Type
 import LLVM.AST.Instruction as Instruction
 import LLVM.AST.Operand
+import LLVM.AST.IntegerPredicate as IPred
 
 defaultAlignment = 32
 
@@ -101,8 +102,19 @@ binOp Syntax.Plus = add
 binOp Syntax.Minus = sub
 binOp Syntax.Mul = mul
 binOp Syntax.Div = sdiv
---TODO: fix it
-binOp op = error $ "Internal error. Do not support operator: " ++ show op
+
+icmp :: IntegerPredicate -> Operand -> Operand -> Instruction
+icmp pred op1 op2 = Instruction.ICmp pred op1 op2 []
+
+cgenCmp :: IntegerPredicate -> Expr -> Expr -> CodeGen Operand
+cgenCmp pred e1 e2 = do
+  op1 <- cgen e1
+  op2 <- cgen e2
+  resultName <- getNextValueName
+  let instruction = resultName := icmp pred op1 op2
+  instructionStack <- gets instructions
+  modify $ \s -> s { instructions = instructionStack ++ [instruction] }
+  return $ LocalReference i1 resultName
 
 
 -- expressions
@@ -116,6 +128,10 @@ cgen (Id name) = do
   names <- gets namesMap
   let (Just varAddr) = M.lookup name names
   load varAddr
+
+cgen (BinExpr Le e1 e2) = cgenCmp IPred.SLE e1 e2
+cgen (BinExpr Lt e1 e2) = cgenCmp IPred.SLT e1 e2
+cgen (BinExpr Eq e1 e2) = cgenCmp IPred.EQ e1 e2
 
 cgen (BinExpr operator e1 e2) = do
   op1 <- cgen e1
