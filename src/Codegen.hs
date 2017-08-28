@@ -84,6 +84,27 @@ load addr@(LocalReference addrType _) = do
   modify $ \s -> s { instructions = instructionStack ++ [loadInstruction] }
   return $ LocalReference (getPointerType addrType) valueName
 
+add :: Operand -> Operand -> Instruction
+add op1 op2 = Instruction.Add False False op1 op2 []
+
+sub :: Operand -> Operand -> Instruction
+sub op1 op2 = Instruction.Sub False False op1 op2 []
+
+mul :: Operand -> Operand -> Instruction
+mul op1 op2 = Instruction.Mul False False op1 op2 []
+
+sdiv :: Operand -> Operand -> Instruction
+sdiv op1 op2 = Instruction.SDiv False op1 op2 []
+
+binOp :: BinaryOp -> Operand -> Operand -> Instruction
+binOp Syntax.Plus = add
+binOp Syntax.Minus = sub
+binOp Syntax.Mul = mul
+binOp Syntax.Div = sdiv
+--TODO: fix it
+binOp op = error $ "Internal error. Do not support operator: " ++ show op
+
+
 -- expressions
 cgen :: Expr -> CodeGen Operand
 cgen (Syntax.Int i) = return $ ConstantOperand $ Const.Int 32 i
@@ -96,45 +117,16 @@ cgen (Id name) = do
   let (Just varAddr) = M.lookup name names
   load varAddr
 
-cgen (BinExpr Plus e1 e2) = do
+cgen (BinExpr operator e1 e2) = do
   op1 <- cgen e1
   op2 <- cgen e2
   resultName <- getNextValueName
-  let addInstruction = resultName := Instruction.Add False False op1 op2 []
+  let instruction = resultName := binOp operator op1 op2
   instructionStack <- gets instructions
-  modify $ \s -> s { instructions = instructionStack ++ [addInstruction] }
+  modify $ \s -> s { instructions = instructionStack ++ [instruction] }
   -- TODO: Move knowledge about type of Plus expressions somewhere.
   -- It would help in case of adding the float and double types
   return $ LocalReference i32 resultName
-
--- TODO: Refactoring is needed. All BinExpr expressions are the same.
-cgen (BinExpr Minus e1 e2) = do
-  op1 <- cgen e1
-  op2 <- cgen e2
-  resultName <- getNextValueName
-  let minusInstruction = resultName := Instruction.Sub False False op1 op2 []
-  instructionStack <- gets instructions
-  modify $ \s -> s { instructions = instructionStack ++ [minusInstruction] }
-  return $ LocalReference i32 resultName
-
-cgen (BinExpr Syntax.Mul e1 e2) = do
-  op1 <- cgen e1
-  op2 <- cgen e2
-  resultName <- getNextValueName
-  let mulInstruction = resultName := Instruction.Mul False False op1 op2 []
-  instructionStack <- gets instructions
-  modify $ \s -> s { instructions = instructionStack ++ [mulInstruction] }
-  return $ LocalReference i32 resultName
-
-cgen (BinExpr Div e1 e2) = do
-  op1 <- cgen e1
-  op2 <- cgen e2
-  resultName <- getNextValueName
-  let divInstruction = resultName := Instruction.SDiv False op1 op2 []
-  instructionStack <- gets instructions
-  modify $ \s -> s { instructions = instructionStack ++ [divInstruction] }
-  return $ LocalReference i32 resultName
-
 
 cgen _ = return $ ConstantOperand $ Const.Int 32 0
 
