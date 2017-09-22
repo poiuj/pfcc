@@ -14,7 +14,7 @@ import LLVM.AST.Global
 import LLVM.AST.Type
 import LLVM.AST.Instruction as Instruction
 import LLVM.AST.Operand
-import LLVM.AST.IntegerPredicate as IPred
+import LLVM.AST.IntegerPredicate as IntPred
 
 defaultAlignment = 32
 
@@ -97,30 +97,28 @@ mul op1 op2 = Instruction.Mul False False op1 op2 []
 sdiv :: Operand -> Operand -> Instruction
 sdiv op1 op2 = Instruction.SDiv False op1 op2 []
 
+icmp :: IntegerPredicate -> Operand -> Operand -> Instruction
+icmp pred op1 op2 = Instruction.ICmp pred op1 op2 []
+
 binOp :: BinaryOp -> Operand -> Operand -> Instruction
 binOp Syntax.Plus = add
 binOp Syntax.Minus = sub
 binOp Syntax.Mul = mul
 binOp Syntax.Div = sdiv
+binOp Syntax.Le = icmp IntPred.SLE
+binOp Syntax.Lt = icmp IntPred.SLT
+binOp Syntax.Eq = icmp IntPred.EQ
 
-icmp :: IntegerPredicate -> Operand -> Operand -> Instruction
-icmp pred op1 op2 = Instruction.ICmp pred op1 op2 []
-
-cgenCmp :: IntegerPredicate -> Expr -> Expr -> CodeGen Operand
-cgenCmp pred e1 e2 = do
-  op1 <- cgen e1
-  op2 <- cgen e2
-  resultName <- getNextValueName
-  let instruction = resultName := icmp pred op1 op2
-  instructionStack <- gets instructions
-  modify $ \s -> s { instructions = instructionStack ++ [instruction] }
-  return $ LocalReference i1 resultName
-
+isCmpOp :: Syntax.BinaryOp -> Bool
+isCmpOp Syntax.Le = True
+isCmpOp Syntax.Lt = True
+isCmpOp Syntax.Eq = True
+isCmpOp _ = False
 
 -- expressions
 cgen :: Expr -> CodeGen Operand
-cgen (Syntax.Int i) = return $ ConstantOperand $ Const.Int 32 i
 
+cgen (Syntax.Int i) = return $ ConstantOperand $ Const.Int 32 i
 cgen (BoolConst bool) = return $ ConstantOperand $ Const.Int 1 $
   if bool then 1 else 0
 
@@ -129,20 +127,15 @@ cgen (Id name) = do
   let (Just varAddr) = M.lookup name names
   load varAddr
 
-cgen (BinExpr Le e1 e2) = cgenCmp IPred.SLE e1 e2
-cgen (BinExpr Lt e1 e2) = cgenCmp IPred.SLT e1 e2
-cgen (BinExpr Eq e1 e2) = cgenCmp IPred.EQ e1 e2
-
-cgen (BinExpr operator e1 e2) = do
+cgen (BinExpr op e1 e2) = do
+  let ty = if isCmpOp op then i1 else i32
   op1 <- cgen e1
   op2 <- cgen e2
   resultName <- getNextValueName
-  let instruction = resultName := binOp operator op1 op2
+  let instruction = resultName := binOp op op1 op2
   instructionStack <- gets instructions
   modify $ \s -> s { instructions = instructionStack ++ [instruction] }
-  -- TODO: Move knowledge about type of Plus expressions somewhere.
-  -- It would help in case of adding the float and double types
-  return $ LocalReference i32 resultName
+  return $ LocalReference ty resultName
 
 cgen _ = return $ ConstantOperand $ Const.Int 32 0
 
