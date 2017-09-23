@@ -127,6 +127,12 @@ cgen (Id name) = do
   let (Just varAddr) = M.lookup name names
   load varAddr
 
+cgen (Assignment lhs rhs) = do
+  rhsResult <- cgen rhs
+  names <- gets namesMap
+  modify $ \s -> s { namesMap = M.insert lhs rhsResult names }
+  return rhsResult
+
 cgen (BinExpr op e1 e2) = do
   let ty = if isCmpOp op then i1 else i32
   op1 <- cgen e1
