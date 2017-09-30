@@ -77,6 +77,20 @@ getPointerType :: Type -> Type
 getPointerType (PointerType referentType _) = referentType
 getPointerType _ = error "Internal error. Can't get pointer referent's type from a non-pointer type"
 
+addVariable :: Syntax.Name -> Operand -> CodeGen ()
+addVariable name targetAddr = do
+  names <- gets namesMap
+  modify $ \s -> s { namesMap = M.insert name targetAddr names }
+
+alloca :: Type -> CodeGen Operand
+alloca allocaType = do
+  actualAddr <- getNextValueName
+  let allocaInstruction =
+        actualAddr := Alloca allocaType Nothing defaultAlignment []
+  instructionStack <- gets instructions
+  modify $ \s -> s { instructions = instructionStack ++ [allocaInstruction] }
+  return $ LocalReference allocaType actualAddr
+
 load :: Operand -> CodeGen Operand
 load addr@(LocalReference addrType _) = do
   valueName <- getNextValueName
@@ -155,17 +169,10 @@ cgen _ = return $ ConstantOperand $ Const.Int 32 0
 
 genActual :: Formal -> CodeGen ()
 genActual (Formal name typeName) = do
-  actualAddr <- getNextValueName
   let formalLLVMType = toLLVMType typeName
-  let allocaInstruction =
-        actualAddr := Alloca formalLLVMType Nothing defaultAlignment []
-  let actualAddrOperand = LocalReference formalLLVMType actualAddr
-  let storeInstruction =
-        Do $ Store False actualAddrOperand (LocalReference formalLLVMType (Name name)) Nothing defaultAlignment []
-  instructionStack <- gets instructions
-  names <- gets namesMap
-  modify $ \s -> s { instructions = instructionStack ++ allocaInstruction : [storeInstruction]
-                   , namesMap = M.insert name actualAddrOperand names }
+  targetAddr <- alloca formalLLVMType
+  addVariable name targetAddr
+  store targetAddr (LocalReference formalLLVMType (Name name))
 
 genBody :: [Formal] -> Expr -> [BasicBlock]
 genBody formals expr =
