@@ -18,6 +18,7 @@ class Test {
   checkNew() : String { new String };
 
   checkSeq() : Bool { {123; false; true; "Test"; true;} };
+  checkSeqSideEffect(a : Int) : Bool { {a <- 123; true;} };
 
   checkLet() : String { Let a : String <- "foo" in a };
 

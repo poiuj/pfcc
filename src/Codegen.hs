@@ -155,6 +155,10 @@ cgen (Assignment lhs rhs) = do
     Nothing  -> error $ "Internal error. Can't find address of " ++ lhs
   return rhsResult
 
+cgen (Compound (expr : exprs)) = do
+  exprOp <- cgen expr
+  foldM (\_ -> cgen) exprOp exprs
+
 cgen (BinExpr op e1 e2) = do
   let ty = if isCmpOp op then i1 else i32
   op1 <- cgen e1
