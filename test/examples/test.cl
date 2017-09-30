@@ -57,5 +57,5 @@ class Test {
   checkAssignSeq(a : Bool) : Bool { a <-
     { 123; false; true; "Test"; false; }
   };
-  checkAssignLet(a : String) : String { a <- let b : String <- "bar" in b };
+  checkAssignLet(a : Int) : Int { a <- let b : Int <- 123 in b + 456 };
 };

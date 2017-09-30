@@ -53,3 +53,8 @@ data BinaryOp
   deriving (Show, Eq)
 
 data UnaryOp = Not | Complement | IsVoid deriving (Show, Eq)
+
+-- utils
+isNoExpr :: Expr -> Bool
+isNoExpr NoExpr = True
+isNoExpr _ = False

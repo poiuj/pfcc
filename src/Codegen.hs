@@ -159,6 +159,14 @@ cgen (Compound (expr : exprs)) = do
   exprOp <- cgen expr
   foldM (\_ -> cgen) exprOp exprs
 
+cgen (Let name typeName initExpr body) = do
+  targetAddr <- alloca $ toLLVMType typeName
+  addVariable name targetAddr
+  if not $ isNoExpr initExpr
+    then cgen initExpr >>= \initOp -> store targetAddr initOp
+    else return ()
+  cgen body
+
 cgen (BinExpr op e1 e2) = do
   let ty = if isCmpOp op then i1 else i32
   op1 <- cgen e1
