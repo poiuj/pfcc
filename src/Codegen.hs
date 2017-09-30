@@ -85,6 +85,12 @@ load addr@(LocalReference addrType _) = do
   modify $ \s -> s { instructions = instructionStack ++ [loadInstruction] }
   return $ LocalReference (getPointerType addrType) valueName
 
+store :: Operand -> Operand -> CodeGen ()
+store addr val = do
+  let storeInstr = Do $ Store False addr val Nothing defaultAlignment []
+  instructionStack <- gets instructions
+  modify $ \s -> s { instructions = instructionStack ++ [storeInstr] }
+
 add :: Operand -> Operand -> Instruction
 add op1 op2 = Instruction.Add False False op1 op2 []
 
@@ -130,7 +136,9 @@ cgen (Id name) = do
 cgen (Assignment lhs rhs) = do
   rhsResult <- cgen rhs
   names <- gets namesMap
-  modify $ \s -> s { namesMap = M.insert lhs rhsResult names }
+  case (M.lookup lhs names) of
+    (Just lhsAddr) -> store lhsAddr rhsResult
+    Nothing  -> error $ "Internal error. Can't find address of " ++ lhs
   return rhsResult
 
 cgen (BinExpr op e1 e2) = do
